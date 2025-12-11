@@ -1,0 +1,420 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Border radius */
+  --radius: 0.625rem;
+
+  /* Light mode colors - Blue/Cyan/Teal theme */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.20 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.20 0.02 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.20 0.02 250);
+  --primary: oklch(0.55 0.20 240);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.96 0.03 240);
+  --secondary-foreground: oklch(0.25 0.04 250);
+  --muted: oklch(0.96 0.02 240);
+  --muted-foreground: oklch(0.45 0.06 250);
+  --accent: oklch(0.94 0.05 220);
+  --accent-foreground: oklch(0.25 0.04 250);
+  --destructive: oklch(0.65 0.25 25);
+  --border: oklch(0.90 0.03 240);
+  --input: oklch(0.95 0.03 240);
+  --ring: oklch(0.55 0.20 240);
+
+  /* Chart colors - Blue/Teal/Cyan palette */
+  --chart-1: oklch(0.60 0.20 240);
+  --chart-2: oklch(0.55 0.18 220);
+  --chart-3: oklch(0.50 0.16 200);
+  --chart-4: oklch(0.65 0.22 260);
+  --chart-5: oklch(0.70 0.24 250);
+
+  /* Sidebar colors */
+  --sidebar: oklch(0.98 0.005 220);
+  --sidebar-foreground: oklch(0.15 0.02 250);
+  --sidebar-primary: oklch(0.55 0.20 240);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.96 0.03 240);
+  --sidebar-accent-foreground: oklch(0.30 0.04 240);
+  --sidebar-border: oklch(0.90 0.03 240);
+  --sidebar-ring: oklch(0.55 0.20 240);
+}
+
+a {
+  font-weight: 500;
+  color: oklch(0.55 0.20 240);
+  text-decoration: inherit;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: oklch(0.50 0.22 240);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: oklch(1 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: oklch(0.15 0.02 250);
+  }
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+h2 {
+  font-weight: 600;
+}
+
+h3 {
+  font-weight: 600;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+.dark {
+  /* Dark mode colors - Blue/Cyan/Teal theme */
+  --background: oklch(0.15 0.02 250);
+  --foreground: oklch(0.98 0.005 260);
+  --card: oklch(0.20 0.03 250);
+  --card-foreground: oklch(0.98 0.005 260);
+  --popover: oklch(0.20 0.03 250);
+  --popover-foreground: oklch(0.98 0.005 260);
+  --primary: oklch(0.65 0.22 240);
+  --primary-foreground: oklch(0.15 0.02 250);
+  --secondary: oklch(0.28 0.04 250);
+  --secondary-foreground: oklch(0.95 0.01 260);
+  --muted: oklch(0.26 0.03 250);
+  --muted-foreground: oklch(0.75 0.05 260);
+  --accent: oklch(0.30 0.05 240);
+  --accent-foreground: oklch(0.95 0.01 260);
+  --destructive: oklch(0.70 0.22 25);
+  --border: oklch(0.30 0.03 250);
+  --input: oklch(0.26 0.03 250);
+  --ring: oklch(0.65 0.20 240);
+
+  /* Chart colors for dark mode */
+  --chart-1: oklch(0.65 0.22 240);
+  --chart-2: oklch(0.60 0.20 220);
+  --chart-3: oklch(0.55 0.18 200);
+  --chart-4: oklch(0.70 0.24 260);
+  --chart-5: oklch(0.75 0.26 250);
+
+  /* Sidebar colors for dark mode */
+  --sidebar: oklch(0.18 0.025 250);
+  --sidebar-foreground: oklch(0.98 0.005 260);
+  --sidebar-primary: oklch(0.65 0.22 240);
+  --sidebar-primary-foreground: oklch(0.15 0.02 250);
+  --sidebar-accent: oklch(0.28 0.04 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 260);
+  --sidebar-border: oklch(0.30 0.03 250);
+  --sidebar-ring: oklch(0.65 0.20 240);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Smooth transitions for theme switching */
+  * {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Custom scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: oklch(0.95 0.02 240);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.70 0.15 240);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.60 0.20 240);
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: oklch(0.20 0.03 250);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(0.40 0.08 240);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.50 0.12 240);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
+  }
+
+  /* Custom Toast Notifications Styling */
+  [data-sonner-toaster] {
+    --width: 380px;
+    --toast-gap: 12px;
+    z-index: 9999 !important;
+  }
+
+  [data-sonner-toast] {
+    min-width: 320px !important;
+    max-width: 420px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    padding: 16px 20px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25) !important;
+    border: 2px solid !important;
+    backdrop-filter: blur(10px);
+    animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1), gradualFadeOutSmooth 5s cubic-bezier(0.4, 0, 0.2, 1) 0.4s forwards !important;
+    will-change: opacity, transform, filter;
+    animation-fill-mode: both;
+    opacity: 1 !important;
+  }
+
+
+  /* Success Toast - Header color scheme (indigo-500 → purple-500 → pink-500) */
+  [data-sonner-toast][data-type="success"] {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%) !important;
+    color: white !important;
+    border-color: rgba(196, 181, 253, 0.7) !important;
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  [data-sonner-toast][data-type="success"] [data-icon] {
+    color: white !important;
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  /* Error Toast - Header color scheme with red tint */
+  [data-sonner-toast][data-type="error"] {
+    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 50%, #ef4444 100%) !important;
+    color: white !important;
+    border-color: rgba(252, 165, 165, 0.7) !important;
+    box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  [data-sonner-toast][data-type="error"] [data-icon] {
+    color: white !important;
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  /* Info Toast - Header color scheme (indigo-500 → purple-500 → pink-500) */
+  [data-sonner-toast][data-type="info"] {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%) !important;
+    color: white !important;
+    border-color: rgba(196, 181, 253, 0.7) !important;
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  [data-sonner-toast][data-type="info"] [data-icon] {
+    color: white !important;
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  /* Warning Toast - Header color scheme with orange tint */
+  [data-sonner-toast][data-type="warning"] {
+    background: linear-gradient(135deg, #f59e0b 0%, #ec4899 50%, #f97316 100%) !important;
+    color: white !important;
+    border-color: rgba(253, 224, 71, 0.7) !important;
+    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  [data-sonner-toast][data-type="warning"] [data-icon] {
+    color: white !important;
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  /* Default Toast - Header color scheme (indigo-500 → purple-500 → pink-500) */
+  [data-sonner-toast]:not([data-type]) {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%) !important;
+    color: white !important;
+    border-color: rgba(196, 181, 253, 0.7) !important;
+    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4) !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  /* Toast Content */
+  [data-sonner-toast] [data-title] {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+    color: white !important;
+    margin-left: 8px !important;
+  }
+
+  [data-sonner-toast] [data-description] {
+    font-size: 13px !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    margin-top: 4px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Close Button */
+  [data-sonner-toast] [data-close-button] {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 6px !important;
+    color: white !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.2s ease !important;
+  }
+
+  [data-sonner-toast] [data-close-button]:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    transform: scale(1.1) !important;
+  }
+
+  /* Animations */
+  @keyframes slideInUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeOut {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(15px) scale(0.96);
+      filter: blur(2px);
+    }
+  }
+
+  /* Gradual fade out animation - mờ dần và chìm xuống mượt mà liên tục không khựng */
+  @keyframes gradualFadeOutSmooth {
+
+    /* Bắt đầu: Rõ ràng 100% */
+    0% {
+      opacity: 1;
+      filter: blur(0px);
+      transform: translateY(0) scale(1);
+    }
+
+    /* Cuối: Biến mất hoàn toàn - chìm hẳn xuống mượt mà */
+    100% {
+      opacity: 0;
+      filter: blur(3px);
+      transform: translateY(60px) scale(0.9);
+    }
+  }
+
+
+  /* Mobile Responsive */
+  @media (max-width: 640px) {
+    [data-sonner-toast] {
+      min-width: calc(100vw - 32px) !important;
+      max-width: calc(100vw - 32px) !important;
+      font-size: 14px !important;
+      padding: 14px 18px !important;
+    }
+
+    [data-sonner-toast] [data-title] {
+      font-size: 15px !important;
+    }
+  }
+}
