@@ -127,6 +127,7 @@ model khachhang {
   diem_fpoint   Int?       @default(0)
   ngay_tham_gia DateTime?  @default(now()) @db.Timestamp(0)
   trang_thai    Boolean?   @default(true)
+  facebook_id   String?    @unique(map: "facebook_id") @db.VarChar(255)
   danhgia       danhgia[]
   donhang       donhang[]
   giohang       giohang[]

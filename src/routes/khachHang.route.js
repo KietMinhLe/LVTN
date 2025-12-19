@@ -2,6 +2,7 @@ import express from "express";
 import {
     registerKhachHang,
     loginKhachHang,
+    loginFacebook,
     verifyKhachHangToken,
     logoutKhachHang,
     getCurrentKhachHang,
@@ -25,6 +26,7 @@ const khachHangRouter = express.Router();
 // ============ PUBLIC ROUTES (không cần xác thực) ============
 khachHangRouter.post("/register", registerKhachHang);
 khachHangRouter.post("/login", loginKhachHang);
+khachHangRouter.post("/login/facebook", loginFacebook);
 khachHangRouter.post("/forgot-password", forgotPassword);
 khachHangRouter.post("/reset-password", resetPassword);
 

@@ -129,6 +129,145 @@ export const registerKhachHang = async (req, res) => {
     }
 };
 
+// Đăng nhập bằng Facebook
+export const loginFacebook = async (req, res) => {
+    try {
+        const { accessToken, userID, email, name } = req.body;
+
+        // Kiểm tra dữ liệu đầu vào
+        if (!accessToken || !userID) {
+            return res.status(400).json({
+                message: "Thiếu thông tin xác thực Facebook",
+                success: false
+            });
+        }
+
+        // Xác thực token với Facebook API
+        try {
+            const fbResponse = await fetch(`https://graph.facebook.com/me?access_token=${accessToken}&fields=id,name,email`);
+            const fbData = await fbResponse.json();
+
+            if (fbData.error) {
+                return res.status(401).json({
+                    message: "Token Facebook không hợp lệ",
+                    success: false
+                });
+            }
+
+            // Kiểm tra userID có khớp không
+            if (fbData.id !== userID) {
+                return res.status(401).json({
+                    message: "Thông tin xác thực không khớp",
+                    success: false
+                });
+            }
+
+            // Tìm khách hàng theo facebook_id hoặc email
+            let khachHang = await prisma.khachhang.findFirst({
+                where: {
+                    OR: [
+                        { facebook_id: userID },
+                        { email: fbData.email || email }
+                    ]
+                }
+            });
+
+            if (khachHang) {
+                // Nếu tìm thấy khách hàng nhưng chưa có facebook_id, cập nhật
+                if (!khachHang.facebook_id) {
+                    khachHang = await prisma.khachhang.update({
+                        where: { khach_hang_id: khachHang.khach_hang_id },
+                        data: { facebook_id: userID }
+                    });
+                }
+
+                // Kiểm tra trạng thái tài khoản
+                if (khachHang.trang_thai !== true) {
+                    return res.status(403).json({
+                        message: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+                        success: false,
+                        code: "ACCOUNT_LOCKED"
+                    });
+                }
+            } else {
+                // Tạo khách hàng mới nếu chưa tồn tại
+                // Tạo email nếu không có từ Facebook
+                const customerEmail = fbData.email || email || `fb_${userID}@facebook.com`;
+                const customerName = fbData.name || name || 'Người dùng Facebook';
+
+                // Tạo mật khẩu ngẫu nhiên (khách hàng đăng nhập Facebook không cần mật khẩu)
+                const randomPassword = Math.random().toString(36).slice(-12);
+                const matKhauBam = await bcrypt.hash(randomPassword, 10);
+
+                const result = await prisma.$transaction(async (tx) => {
+                    // Tạo khách hàng mới
+                    const khachHangMoi = await tx.khachhang.create({
+                        data: {
+                            email: customerEmail,
+                            mat_khau: matKhauBam,
+                            ho_ten: customerName,
+                            facebook_id: userID,
+                            diem_fpoint: 0,
+                            trang_thai: true
+                        }
+                    });
+
+                    // Tạo giỏ hàng cho khách hàng mới
+                    await tx.giohang.create({
+                        data: {
+                            khach_hang_id: khachHangMoi.khach_hang_id
+                        }
+                    });
+
+                    return khachHangMoi;
+                });
+
+                khachHang = result;
+            }
+
+            // Tạo token JWT
+            const token = jwt.sign(
+                {
+                    id: khachHang.khach_hang_id,
+                    email: khachHang.email,
+                    role: 'customer'
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: "7d" }
+            );
+
+            // Trả kết quả đăng nhập
+            res.json({
+                message: "Đăng nhập Facebook thành công",
+                success: true,
+                token,
+                khach_hang: {
+                    id: khachHang.khach_hang_id,
+                    email: khachHang.email,
+                    ho_ten: khachHang.ho_ten,
+                    so_dien_thoai: khachHang.so_dien_thoai,
+                    ngay_sinh: khachHang.ngay_sinh,
+                    diem_fpoint: khachHang.diem_fpoint,
+                    ngay_tham_gia: khachHang.ngay_tham_gia
+                }
+            });
+        } catch (fbError) {
+            console.error("Lỗi xác thực Facebook:", fbError);
+            return res.status(401).json({
+                message: "Không thể xác thực với Facebook",
+                success: false
+            });
+        }
+    } catch (error) {
+        console.error("Lỗi đăng nhập Facebook:", error);
+        res.status(500).json({
+            message: "Lỗi server",
+            success: false,
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
 // Đăng nhập khách hàng
 export const loginKhachHang = async (req, res) => {
     try {
