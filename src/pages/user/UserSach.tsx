@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getAllSach, searchSach, type Sach } from '../../services/sachService';
 import { getAllDanhMuc, type DanhMuc } from '../../services/danhMucService';
 import { useAddToCart } from '../../hooks/useCart';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { Card, CardContent, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
@@ -81,6 +81,26 @@ const UserSach = () => {
   useEffect(() => {
     loadBooks();
   }, [loadBooks]);
+
+  // Scroll to top when search results change
+  useEffect(() => {
+    if (searchQuery && filteredBooks.length > 0) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [searchQuery, filteredBooks.length]);
+
+  // Sync searchQuery with URL query param when URL changes (e.g., from Header search)
+  useEffect(() => {
+    const qParam = searchParams.get('q');
+    if (qParam !== null && qParam !== searchQuery) {
+      // Có query param trong URL, cập nhật searchQuery
+      setSearchQuery(qParam);
+    } else if (qParam === null && searchQuery) {
+      // Không có query param trong URL nhưng state có, clear searchQuery để hiển thị tất cả sách
+      setSearchQuery('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Sync selectedAuthor with URL query param (only when URL changes externally, e.g., from navigation)
   useEffect(() => {
@@ -174,13 +194,16 @@ const UserSach = () => {
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Nếu có từ khóa, set query param và load sách
+    // Nếu không có từ khóa, xóa query param và load tất cả sách
     if (searchQuery.trim()) {
       setSearchParams({ q: searchQuery.trim() });
-      loadBooks();
     } else {
       setSearchParams({});
-      loadBooks();
+      // Đảm bảo searchQuery được clear
+      setSearchQuery('');
     }
+    // loadBooks sẽ được gọi tự động khi searchQuery thay đổi
   };
 
   const handleClearFilters = () => {

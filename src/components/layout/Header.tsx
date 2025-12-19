@@ -130,10 +130,14 @@ const Header = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    // Nếu có từ khóa, navigate với query param
+    // Nếu không có từ khóa, navigate về /books (không có query param) để hiển thị tất cả sách
     if (searchQuery.trim()) {
       navigate(`/books?q=${encodeURIComponent(searchQuery.trim())}`);
-      setShowResults(false);
+    } else {
+      navigate('/books');
     }
+    setShowResults(false);
   };
 
   // Helper function để lấy URL ảnh sách (ưu tiên anhsach, nếu không có thì dùng anh_bia_url)
