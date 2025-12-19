@@ -5,7 +5,12 @@ export const getAllDanhMuc = async (req, res) => {
         // Thực hiện truy vấn với Prisma
         const data = await prisma.danhmuc.findMany({
             include: {
-                danhmuccha: true
+                danhmuccha: true,
+                _count: {
+                    select: {
+                        sach_danhmuc: true
+                    }
+                }
             },
             orderBy: [
                 { danhmuccha: { ten_danh_muc_cha: 'asc' } },
@@ -22,10 +27,16 @@ export const getAllDanhMuc = async (req, res) => {
             });
         }
 
+        // Thêm số lượng sách vào mỗi danh mục
+        const dataWithCount = data.map(danhMuc => ({
+            ...danhMuc,
+            so_luong_sach: danhMuc._count.sach_danhmuc
+        }));
+
         return res.status(200).json({
             success: true,
             message: "Lấy danh mục và danh mục cha thành công",
-            data: data
+            data: dataWithCount
         });
 
     } catch (error) {
@@ -97,7 +108,12 @@ export const getDanhMucById = async (req, res) => {
         const data = await prisma.danhmuc.findUnique({
             where: { danh_muc_id: parseInt(id) },
             include: {
-                danhmuccha: true
+                danhmuccha: true,
+                _count: {
+                    select: {
+                        sach_danhmuc: true
+                    }
+                }
             }
         });
 
@@ -110,10 +126,16 @@ export const getDanhMucById = async (req, res) => {
             });
         }
 
+        // Thêm số lượng sách vào danh mục
+        const dataWithCount = {
+            ...data,
+            so_luong_sach: data._count.sach_danhmuc
+        };
+
         return res.status(200).json({
             success: true,
             message: "Lấy danh mục thành công",
-            data: data
+            data: dataWithCount
         });
 
     } catch (error) {
@@ -367,14 +389,29 @@ export const deleteDanhMuc = async (req, res) => {
             });
         }
 
-        // Kiểm tra danh mục có tồn tại không
+        // Kiểm tra danh mục có tồn tại không và đếm số lượng sách
         const existing = await prisma.danhmuc.findUnique({
-            where: { danh_muc_id: parseInt(id) }
+            where: { danh_muc_id: parseInt(id) },
+            include: {
+                _count: {
+                    select: {
+                        sach_danhmuc: true
+                    }
+                }
+            }
         });
 
         if (!existing) {
             return res.status(404).json({
                 message: "Danh mục không tồn tại",
+                success: false
+            });
+        }
+
+        // Kiểm tra danh mục có sách không - KHÔNG CHO PHÉP XÓA
+        if (existing._count.sach_danhmuc > 0) {
+            return res.status(400).json({
+                message: `Không thể xóa danh mục này vì đang có ${existing._count.sach_danhmuc} sách. Vui lòng xóa hoặc chuyển sách sang danh mục khác trước.`,
                 success: false
             });
         }

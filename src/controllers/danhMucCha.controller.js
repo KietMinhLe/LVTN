@@ -227,6 +227,17 @@ export const deleteDanhMucCha = async (req, res) => {
             });
         }
 
+        // Kiểm tra xem có danh mục con nào đang sử dụng danh mục cha này không
+        const danhMucCon = await prisma.danhmuc.findFirst({
+            where: { danh_muc_cha_id: parseInt(id) }
+        });
+
+        if (danhMucCon) {
+            return res.status(400).json({
+                message: "Không thể xóa danh mục cha này vì đang có danh mục con đang sử dụng",
+                success: false
+            });
+        }
 
         // Xóa danh mục cha trong DB
         const data = await prisma.danhmuccha.delete({

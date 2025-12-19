@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import prisma from "../config/db.js";
 
 // Middleware xác thực JWT cho admin
 export const authenticateAdmin = (req, res, next) => {
@@ -30,7 +31,7 @@ export const authenticateAdmin = (req, res, next) => {
 };
 
 // Middleware xác thực JWT cho user thường (nếu cần)
-export const authenticateUser = (req, res, next) => {
+export const authenticateUser = async (req, res, next) => {
     try {
         // Lấy token từ header Authorization (thử nhiều cách)
         let token = req.header("Authorization") || req.header("authorization");
@@ -108,6 +109,35 @@ export const authenticateUser = (req, res, next) => {
                 message: "Token không hợp lệ - thiếu id khách hàng. Vui lòng đăng nhập lại.",
                 success: false
             });
+        }
+
+        // Kiểm tra trạng thái tài khoản khách hàng (chỉ kiểm tra nếu role là 'customer')
+        if (decoded.role === 'customer') {
+            try {
+                const khachHang = await prisma.khachhang.findUnique({
+                    where: { khach_hang_id: decoded.id },
+                    select: { trang_thai: true }
+                });
+
+                if (!khachHang) {
+                    return res.status(401).json({
+                        message: "Khách hàng không tồn tại",
+                        success: false
+                    });
+                }
+
+                if (khachHang.trang_thai !== true) {
+                    return res.status(403).json({
+                        message: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+                        success: false,
+                        code: "ACCOUNT_LOCKED"
+                    });
+                }
+            } catch (dbError) {
+                console.error("authenticateUser: Database error checking account status", dbError);
+                // Không chặn request nếu có lỗi database, để tránh làm gián đoạn hệ thống
+                // Chỉ log lỗi và tiếp tục
+            }
         }
 
         req.user = decoded; // Lưu decoded vào req.user

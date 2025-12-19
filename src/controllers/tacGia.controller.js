@@ -3,7 +3,15 @@ import prisma from "../config/db.js";
 //Lấy tất cả tác giả
 export const getAllTacGia = async (req, res) => {
     try {
-        const data = await prisma.tacgia.findMany();
+        const data = await prisma.tacgia.findMany({
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
+        });
 
         //Kiểm tra tác giả có tồn tại trong DB không
         if (!data.length) {
@@ -14,10 +22,16 @@ export const getAllTacGia = async (req, res) => {
             });
         }
 
+        // Thêm số lượng sách vào mỗi tác giả
+        const dataWithCount = data.map(tacGia => ({
+            ...tacGia,
+            so_luong_sach: tacGia._count.sach
+        }));
+
         return res.status(200).json({
             message: "Lấy tất cả tác giả thành công",
             success: true,
-            data: data
+            data: dataWithCount
         });
     } catch (error) {
         return res.status(500).json({
@@ -330,9 +344,16 @@ export const deleteTacGia = async (req, res) => {
             });
         }
 
-        //Kiểm tra tác giả có tồn tại trong DB không
+        //Kiểm tra tác giả có tồn tại không và đếm số lượng sách
         const existing = await prisma.tacgia.findUnique({
-            where: { tac_gia_id: parseInt(id) }
+            where: { tac_gia_id: parseInt(id) },
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
         });
 
         //Kiểm tra tác giả có tồn tại trong DB không
@@ -341,6 +362,14 @@ export const deleteTacGia = async (req, res) => {
                 message: "Không có tác giả nào trong hệ thống",
                 success: false,
                 data: null
+            });
+        }
+
+        // Kiểm tra tác giả có sách không - KHÔNG CHO PHÉP XÓA
+        if (existing._count.sach > 0) {
+            return res.status(400).json({
+                message: `Không thể xóa tác giả này vì đang có ${existing._count.sach} sách. Vui lòng xóa hoặc chuyển sách sang tác giả khác trước.`,
+                success: false
             });
         }
 

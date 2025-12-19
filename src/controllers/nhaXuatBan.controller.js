@@ -2,7 +2,15 @@ import prisma from "../config/db.js";
 
 export const getAllNhaXuatBan = async (req, res) => {
     try {
-        const data = await prisma.nhaxuatban.findMany();
+        const data = await prisma.nhaxuatban.findMany({
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
+        });
 
         // Kiểm tra nhà xuất bản có tồn tại trong DB không
         if (data.length === 0) {
@@ -13,10 +21,16 @@ export const getAllNhaXuatBan = async (req, res) => {
             });
         }
 
+        // Thêm số lượng sách vào mỗi nhà xuất bản
+        const dataWithCount = data.map(nxb => ({
+            ...nxb,
+            so_luong_sach: nxb._count.sach
+        }));
+
         return res.status(200).json({
             message: "Lấy tất cả nhà xuất bản thành công",
             success: true,
-            data: data
+            data: dataWithCount
         });
     } catch (error) {
         return res.status(500).json({
@@ -323,9 +337,16 @@ export const deleteNhaXuatBan = async (req, res) => {
             });
         }
 
-        //Kiểm tra nhà xuất bản có tồn tại trong DB không
+        //Kiểm tra nhà xuất bản có tồn tại không và đếm số lượng sách
         const existing = await prisma.nhaxuatban.findUnique({
-            where: { nha_xuat_ban_id: parseInt(id) }
+            where: { nha_xuat_ban_id: parseInt(id) },
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
         });
 
         //Kiểm tra nhà xuất bản có tồn tại trong DB không
@@ -335,7 +356,15 @@ export const deleteNhaXuatBan = async (req, res) => {
                 success: false,
                 data: null
             });
-        };
+        }
+
+        // Kiểm tra nhà xuất bản có sách không - KHÔNG CHO PHÉP XÓA
+        if (existing._count.sach > 0) {
+            return res.status(400).json({
+                message: `Không thể xóa nhà xuất bản này vì đang có ${existing._count.sach} sách. Vui lòng xóa hoặc chuyển sách sang nhà xuất bản khác trước.`,
+                success: false
+            });
+        }
 
         const data = await prisma.nhaxuatban.delete({
             where: { nha_xuat_ban_id: parseInt(id) }

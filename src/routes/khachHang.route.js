@@ -13,7 +13,9 @@ import {
     updateMyProfile,
     changePassword,
     toggleKhachHangStatus,
-    deleteKhachHang
+    deleteKhachHang,
+    forgotPassword,
+    resetPassword
 } from "../controllers/khachHang.controller.js";
 import { authenticateUser } from "../middleware/auth.js";
 import { authenticateAdmin } from "../middleware/auth.js";
@@ -23,6 +25,8 @@ const khachHangRouter = express.Router();
 // ============ PUBLIC ROUTES (không cần xác thực) ============
 khachHangRouter.post("/register", registerKhachHang);
 khachHangRouter.post("/login", loginKhachHang);
+khachHangRouter.post("/forgot-password", forgotPassword);
+khachHangRouter.post("/reset-password", resetPassword);
 
 // ============ ADMIN/PUBLIC ROUTES (không cần xác thực) - ĐẶT TRƯỚC route động ============
 // QUAN TRỌNG: Đặt các route cụ thể TRƯỚC route động /:id để tránh conflict

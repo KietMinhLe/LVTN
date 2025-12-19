@@ -1,6 +1,7 @@
 import prisma from "../config/db.js"; // Import Prisma Client để thao tác với database
 import bcrypt from "bcrypt";          // Dùng để hash và so sánh mật khẩu
 import jwt from "jsonwebtoken";       // Dùng để tạo và xác thực token JWT
+import { sendPasswordResetEmail } from "../services/email.service.js";
 
 // Đăng ký khách hàng mới
 export const registerKhachHang = async (req, res) => {
@@ -77,7 +78,7 @@ export const registerKhachHang = async (req, res) => {
             const existingGioHang = await tx.giohang.findFirst({
                 where: {
                     khach_hang_id: khachHangMoi.khach_hang_id // Tìm giỏ hàng theo ID khách hàng        
-                }   
+                }
             });
 
             // Chỉ tạo giỏ hàng mới nếu chưa có giỏ hàng nào
@@ -174,9 +175,10 @@ export const loginKhachHang = async (req, res) => {
 
         // Kiểm tra trạng thái tài khoản
         if (khachHang.trang_thai !== true) {
-            return res.status(401).json({
-                message: "Tài khoản đã bị khóa",
-                success: false
+            return res.status(403).json({
+                message: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+                success: false,
+                code: "ACCOUNT_LOCKED"
             });
         }
 
@@ -264,9 +266,10 @@ export const verifyKhachHangToken = async (req, res) => {
         }
 
         if (khachHangData.trang_thai !== true) {
-            return res.status(401).json({
-                message: "Tài khoản đã bị khóa",
-                success: false
+            return res.status(403).json({
+                message: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+                success: false,
+                code: "ACCOUNT_LOCKED"
             });
         }
 
@@ -330,9 +333,10 @@ export const getCurrentKhachHang = async (req, res) => {
 
         // Kiểm tra trạng thái tài khoản
         if (khachHangData.trang_thai !== true) {
-            return res.status(401).json({
-                message: "Tài khoản đã bị khóa",
-                success: false
+            return res.status(403).json({
+                message: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+                success: false,
+                code: "ACCOUNT_LOCKED"
             });
         }
 
@@ -959,7 +963,7 @@ export const changePassword = async (req, res) => {
         // Kiểm tra mật khẩu cũ có đúng không
         const isMatch = await bcrypt.compare(matKhauCu, khachHang.mat_khau);
         if (!isMatch) {
-            return res.status(401).json({
+            return res.status(400).json({
                 message: "Mật khẩu cũ không chính xác",
                 success: false
             });
@@ -1039,6 +1043,20 @@ export const toggleKhachHangStatus = async (req, res) => {
         // Đảo ngược trạng thái
         const newStatus = !existingKhachHang.trang_thai;
 
+        // Nếu đang muốn khóa tài khoản, kiểm tra xem khách hàng có đơn hàng không
+        if (!newStatus) {
+            const donHangCount = await prisma.donhang.count({
+                where: { khach_hang_id: khachHangId }
+            });
+
+            if (donHangCount > 0) {
+                return res.status(400).json({
+                    message: `Không thể khóa tài khoản khách hàng này vì đang có ${donHangCount} đơn hàng. Vui lòng xử lý các đơn hàng trước khi khóa tài khoản.`,
+                    success: false
+                });
+            }
+        }
+
         // Cập nhật trạng thái
         const updatedKhachHang = await prisma.khachhang.update({
             where: { khach_hang_id: khachHangId },
@@ -1092,6 +1110,18 @@ export const deleteKhachHang = async (req, res) => {
             });
         }
 
+        // Kiểm tra xem khách hàng có đơn hàng không
+        const donHangCount = await prisma.donhang.count({
+            where: { khach_hang_id: khachHangId }
+        });
+
+        if (donHangCount > 0) {
+            return res.status(400).json({
+                message: `Không thể xóa khách hàng này vì đang có ${donHangCount} đơn hàng. Vui lòng xử lý các đơn hàng trước khi xóa khách hàng.`,
+                success: false
+            });
+        }
+
         // Soft delete - chỉ set trang_thai = false
         const deletedKhachHang = await prisma.khachhang.update({
             where: { khach_hang_id: khachHangId },
@@ -1111,6 +1141,208 @@ export const deleteKhachHang = async (req, res) => {
         });
     } catch (error) {
         console.error("Lỗi xóa khách hàng:", error);
+        return res.status(500).json({
+            message: "Lỗi server",
+            success: false,
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+}
+
+// Quên mật khẩu - Gửi email reset password
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        // Kiểm tra email có được cung cấp không
+        if (!email) {
+            return res.status(400).json({
+                message: "Vui lòng nhập email",
+                success: false
+            });
+        }
+
+        // Kiểm tra định dạng email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                message: "Email không hợp lệ",
+                success: false
+            });
+        }
+
+        // Tìm khách hàng bằng email
+        const khachHang = await prisma.khachhang.findUnique({
+            where: { email },
+            select: {
+                khach_hang_id: true,
+                email: true,
+                ho_ten: true,
+                trang_thai: true
+            }
+        });
+
+        // Kiểm tra email có tồn tại trong hệ thống không
+        if (!khachHang) {
+            return res.status(404).json({
+                message: "Email không tồn tại trong hệ thống",
+                success: false
+            });
+        }
+
+        // Kiểm tra tài khoản có bị khóa không
+        if (!khachHang.trang_thai) {
+            return res.status(403).json({
+                message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên",
+                success: false
+            });
+        }
+
+        // Tạo reset token (JWT với thời gian hết hạn 1 giờ)
+        const resetToken = jwt.sign(
+            {
+                id: khachHang.khach_hang_id,
+                email: khachHang.email,
+                type: 'password_reset'
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        // Gửi email reset password
+        try {
+            console.log('\n🔄 Attempting to send password reset email...');
+            console.log('Email:', khachHang.email);
+            console.log('User Name:', khachHang.ho_ten);
+            await sendPasswordResetEmail(khachHang.email, resetToken, khachHang.ho_ten);
+            console.log('✅ Email sent successfully!\n');
+        } catch (emailError) {
+            console.error('\n❌ Error sending reset email:');
+            console.error('Error Type:', emailError.name);
+            console.error('Error Message:', emailError.message);
+            if (emailError.code) {
+                console.error('Error Code:', emailError.code);
+            }
+            if (emailError.response) {
+                console.error('SMTP Response:', emailError.response);
+            }
+            console.error('Full Error:', emailError);
+            console.error('===================================\n');
+            // Vẫn trả về thành công để không tiết lộ lỗi email
+        }
+
+        return res.status(200).json({
+            message: "Chúng tôi đã gửi link đặt lại mật khẩu đến email của bạn",
+            success: true
+        });
+    } catch (error) {
+        console.error("Lỗi quên mật khẩu:", error);
+        return res.status(500).json({
+            message: "Lỗi server",
+            success: false,
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+}
+
+// Reset mật khẩu - Đặt lại mật khẩu mới với token
+export const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword, confirmPassword } = req.body;
+
+        // Kiểm tra dữ liệu đầu vào
+        if (!token || !newPassword || !confirmPassword) {
+            return res.status(400).json({
+                message: "Vui lòng nhập đầy đủ thông tin (token, mật khẩu mới và xác nhận mật khẩu)",
+                success: false
+            });
+        }
+
+        // Kiểm tra mật khẩu mới không được bỏ trống
+        if (!newPassword || newPassword.trim() === '') {
+            return res.status(400).json({
+                message: "Mật khẩu mới không được bỏ trống",
+                success: false
+            });
+        }
+
+        // Kiểm tra độ dài mật khẩu
+        if (newPassword.length < 8) {
+            return res.status(400).json({
+                message: "Mật khẩu phải có ít nhất 8 ký tự",
+                success: false
+            });
+        }
+
+        // Kiểm tra mật khẩu xác nhận phải khớp với mật khẩu mới
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({
+                message: "Mật khẩu xác nhận không khớp",
+                success: false
+            });
+        }
+
+        // Xác thực token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            if (error.name === 'TokenExpiredError') {
+                return res.status(400).json({
+                    message: "Token đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu lại",
+                    success: false
+                });
+            }
+            return res.status(400).json({
+                message: "Token không hợp lệ",
+                success: false
+            });
+        }
+
+        // Kiểm tra token có phải là password reset token không
+        if (decoded.type !== 'password_reset') {
+            return res.status(400).json({
+                message: "Token không hợp lệ",
+                success: false
+            });
+        }
+
+        // Tìm khách hàng
+        const khachHang = await prisma.khachhang.findUnique({
+            where: { khach_hang_id: decoded.id }
+        });
+
+        if (!khachHang) {
+            return res.status(404).json({
+                message: "Không tìm thấy tài khoản",
+                success: false
+            });
+        }
+
+        // Kiểm tra email có khớp không
+        if (khachHang.email !== decoded.email) {
+            return res.status(400).json({
+                message: "Token không hợp lệ",
+                success: false
+            });
+        }
+
+        // Hash mật khẩu mới
+        const saltRounds = 10;
+        const matKhauBam = await bcrypt.hash(String(newPassword), saltRounds);
+
+        // Cập nhật mật khẩu
+        await prisma.khachhang.update({
+            where: { khach_hang_id: decoded.id },
+            data: { mat_khau: matKhauBam }
+        });
+
+        return res.status(200).json({
+            message: "Đặt lại mật khẩu thành công. Vui lòng đăng nhập với mật khẩu mới",
+            success: true
+        });
+    } catch (error) {
+        console.error("Lỗi reset mật khẩu:", error);
         return res.status(500).json({
             message: "Lỗi server",
             success: false,

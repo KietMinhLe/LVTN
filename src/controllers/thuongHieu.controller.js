@@ -2,7 +2,15 @@ import prisma from "../config/db.js";
 
 export const getAllThuongHieu = async (req, res) => {
     try {
-        const data = await prisma.thuonghieu.findMany();
+        const data = await prisma.thuonghieu.findMany({
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
+        });
 
         //Kiểm tra thương hiệu có tồn tại trong DB không
         if (data.length === 0) {
@@ -13,10 +21,16 @@ export const getAllThuongHieu = async (req, res) => {
             });
         }
 
+        // Thêm số lượng sách vào mỗi thương hiệu
+        const dataWithCount = data.map(th => ({
+            ...th,
+            so_luong_sach: th._count.sach
+        }));
+
         return res.status(200).json({
             message: "Lấy tất cả thương hiệu thành công",
             success: true,
-            data: data
+            data: dataWithCount
         });
     } catch (error) {
         return res.status(500).json({
@@ -343,9 +357,16 @@ export const deleteThuongHieu = async (req, res) => {
             });
         }
 
-        //Kiểm tra thương hiệu có tồn tại trong DB không
+        //Kiểm tra thương hiệu có tồn tại không và đếm số lượng sách
         const existing = await prisma.thuonghieu.findUnique({
-            where: { thuong_hieu_id: parseInt(id) }
+            where: { thuong_hieu_id: parseInt(id) },
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
         });
 
         //Kiểm tra thương hiệu có tồn tại trong DB không
@@ -354,6 +375,14 @@ export const deleteThuongHieu = async (req, res) => {
                 message: "Không có thương hiệu nào trong hệ thống",
                 success: false,
                 data: null
+            });
+        }
+
+        // Kiểm tra thương hiệu có sách không - KHÔNG CHO PHÉP XÓA
+        if (existing._count.sach > 0) {
+            return res.status(400).json({
+                message: `Không thể xóa thương hiệu này vì đang có ${existing._count.sach} sách. Vui lòng xóa hoặc chuyển sách sang thương hiệu khác trước.`,
+                success: false
             });
         }
 

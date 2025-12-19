@@ -145,7 +145,7 @@ export const searchSach = async (req, res) => {
             try {
                 // Tạo search term với wildcard cho BOOLEAN MODE để tìm kiếm tốt hơn
                 const searchTerm = `*${keyword}*`;
-                
+
                 const rows = await prisma.$queryRawUnsafe(
                     `
                     SELECT 
@@ -220,7 +220,7 @@ export const searchSach = async (req, res) => {
             sachIds.forEach((id, idx) => orderMap.set(id, idx));
             data.sort((a, b) => (orderMap.get(a.sach_id) ?? 0) - (orderMap.get(b.sach_id) ?? 0));
         }
-        
+
         // Nếu không có kết quả từ FULLTEXT hoặc keyword quá ngắn, dùng LIKE search
         if (sachIds.length === 0) {
             // Fallback: tìm kiếm LIKE trên tên sách, mã sách, tên tác giả, tên danh mục
@@ -229,15 +229,17 @@ export const searchSach = async (req, res) => {
                 where: {
                     OR: [
                         { ten_sach: { contains: keyword } },
-                        { ma_sach:   { contains: keyword } },
-                        { tacgia:    { ten_tac_gia: { contains: keyword } } },
-                        { sach_danhmuc: {
-                            some: {
-                                danhmuc: {
-                                    ten_danh_muc: { contains: keyword }
+                        { ma_sach: { contains: keyword } },
+                        { tacgia: { ten_tac_gia: { contains: keyword } } },
+                        {
+                            sach_danhmuc: {
+                                some: {
+                                    danhmuc: {
+                                        ten_danh_muc: { contains: keyword }
+                                    }
                                 }
                             }
-                        } }
+                        }
                     ]
                 },
                 include: {
@@ -984,6 +986,18 @@ export const deleteSach = async (req, res) => {
             });
         }
 
+        // Kiểm tra xem sách có trong đơn hàng không
+        const donHangCount = await prisma.chitietdonhang.count({
+            where: { sach_id: parseInt(id) }
+        });
+
+        if (donHangCount > 0) {
+            return res.status(400).json({
+                message: `Không thể xóa sách này vì đang có ${donHangCount} đơn hàng liên quan. Vui lòng xử lý các đơn hàng trước khi xóa sách.`,
+                success: false
+            });
+        }
+
         // Xóa sách trong database (sẽ tự động xóa các dữ liệu liên quan do cascade delete)
         const data = await prisma.sach.delete({
             where: { sach_id: parseInt(id) } // Tìm sách theo ID để xóa
@@ -996,7 +1010,16 @@ export const deleteSach = async (req, res) => {
             data: data
         });
     } catch (error) {
-        // Xử lý lỗi server
+        // Xử lý lỗi foreign key constraint (sách đang có trong đơn hàng)
+        if (error.code === 'P2003') {
+            return res.status(400).json({
+                message: "Không thể xóa sách này vì đang có trong đơn hàng. Vui lòng xử lý đơn hàng trước khi xóa sách.",
+                success: false,
+                error: error.message
+            });
+        }
+
+        // Xử lý lỗi server khác
         return res.status(500).json({
             message: "Lỗi server",
             success: false,

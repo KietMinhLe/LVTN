@@ -511,3 +511,109 @@ export const deleteDonHang = async (req, res) => {
         });
     }
 }
+
+// Hủy đơn hàng 
+export const cancelDonHang = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user?.id; // Lấy ID user từ middleware authenticateUser
+
+        // Kiểm tra ID có được cung cấp không và phải là số
+        if (!id || isNaN(id)) {
+            return res.status(400).json({
+                message: "ID không được để trống và phải là số",
+                success: false,
+                data: null
+            });
+        }
+
+        // Kiểm tra user đã đăng nhập chưa
+        if (!userId) {
+            return res.status(401).json({
+                message: "Bạn cần đăng nhập để hủy đơn hàng",
+                success: false,
+                data: null
+            });
+        }
+
+        // Kiểm tra đơn hàng có tồn tại không
+        const donHang = await prisma.donhang.findUnique({
+            where: { don_hang_id: parseInt(id) },
+            include: {
+                khachhang: true
+            }
+        });
+
+        if (!donHang) {
+            return res.status(404).json({
+                message: "Đơn hàng không tồn tại",
+                success: false,
+                data: null
+            });
+        }
+
+        // Kiểm tra user có phải chủ sở hữu đơn hàng không
+        if (donHang.khach_hang_id !== parseInt(userId)) {
+            return res.status(403).json({
+                message: "Bạn không có quyền hủy đơn hàng này",
+                success: false,
+                data: null
+            });
+        }
+
+        // Kiểm tra trạng thái đơn hàng - chỉ cho phép hủy khi đơn hàng chưa được giao và chưa vận chuyển
+        const allowedStatuses = ["Chờ xác nhận", "Chờ thanh toán", "Đã xác nhận"];
+        const blockedStatuses = ["Đang giao hàng", "Đang vận chuyển"];
+
+        // Kiểm tra nếu đơn hàng đang trong quá trình vận chuyển
+        if (blockedStatuses.includes(donHang.trang_thai)) {
+            return res.status(400).json({
+                message: `Không thể hủy đơn hàng khi đang trong quá trình vận chuyển. Trạng thái hiện tại: "${donHang.trang_thai}"`,
+                success: false,
+                data: null
+            });
+        }
+
+        // Kiểm tra nếu trạng thái không nằm trong danh sách được phép hủy
+        if (!allowedStatuses.includes(donHang.trang_thai)) {
+            return res.status(400).json({
+                message: `Không thể hủy đơn hàng ở trạng thái "${donHang.trang_thai}". Chỉ có thể hủy khi đơn hàng ở trạng thái: ${allowedStatuses.join(", ")}`,
+                success: false,
+                data: null
+            });
+        }
+
+        // Cập nhật trạng thái đơn hàng thành "Đã hủy"
+        const data = await prisma.donhang.update({
+            where: { don_hang_id: parseInt(id) },
+            data: {
+                trang_thai: "Đã hủy",
+                ngay_cap_nhat: new Date()
+            },
+            include: {
+                khachhang: true,
+                phuongthucthanhtoan: true,
+                phuongthucvanchuyen: true,
+                voucher: true,
+                chitietdonhang: {
+                    include: {
+                        sach: true
+                    }
+                },
+                danhgia: true
+            }
+        });
+
+        return res.status(200).json({
+            message: "Hủy đơn hàng thành công",
+            success: true,
+            data: data
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Lỗi server",
+            success: false,
+            error: error.message
+        });
+    }
+}

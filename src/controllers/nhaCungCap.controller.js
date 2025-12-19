@@ -2,7 +2,15 @@ import prisma from "../config/db.js";
 
 export const getAllNhaCungCap = async (req, res) => {
     try {
-        const data = await prisma.nhacungcap.findMany();
+        const data = await prisma.nhacungcap.findMany({
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
+        });
 
         // Kiểm tra nhà cung cấp có tồn tại hay không
         if (data.length === 0) {
@@ -13,11 +21,17 @@ export const getAllNhaCungCap = async (req, res) => {
             });
         }
 
+        // Thêm số lượng sách vào mỗi nhà cung cấp
+        const dataWithCount = data.map(ncc => ({
+            ...ncc,
+            so_luong_sach: ncc._count.sach
+        }));
+
         //Trả về dữ liệu
         return res.status(200).json({
             message: "Lấy tất cả nhà cung cấp thành công",
             success: true,
-            data: data
+            data: dataWithCount
         });
 
     } catch (error) {
@@ -417,9 +431,16 @@ export const deleteNhaCungCap = async (req, res) => {
             });
         }
 
-        //Kiểm tra nhà cung cấp có tồn tại trong DB không
+        //Kiểm tra nhà cung cấp có tồn tại không và đếm số lượng sách
         const existing = await prisma.nhacungcap.findUnique({
-            where: { nha_cung_cap_id: parseInt(id) }
+            where: { nha_cung_cap_id: parseInt(id) },
+            include: {
+                _count: {
+                    select: {
+                        sach: true
+                    }
+                }
+            }
         });
 
         //Kiểm tra nhà cung cấp có tồn tại trong DB không
@@ -428,6 +449,14 @@ export const deleteNhaCungCap = async (req, res) => {
                 message: "Không có nhà cung cấp nào trong hệ thống",
                 success: false,
                 data: null
+            });
+        }
+
+        // Kiểm tra nhà cung cấp có sách không - KHÔNG CHO PHÉP XÓA
+        if (existing._count.sach > 0) {
+            return res.status(400).json({
+                message: `Không thể xóa nhà cung cấp này vì đang có ${existing._count.sach} sách. Vui lòng xóa hoặc chuyển sách sang nhà cung cấp khác trước.`,
+                success: false
             });
         }
 
