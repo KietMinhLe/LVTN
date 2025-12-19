@@ -128,71 +128,208 @@ export const searchSach = async (req, res) => {
             });
         }
 
-        // Chuẩn hóa keyword: loại bỏ khoảng trắng thừa, chuyển về lowercase để tìm kiếm tốt hơn
-        keyword = keyword.toLowerCase().replace(/\s+/g, ' ').trim();
+        // Chuẩn hóa keyword: loại bỏ khoảng trắng thừa
+        keyword = keyword.replace(/\s+/g, ' ').trim();
 
         let sachIds = [];
+        let data = [];
+        const keywordLower = keyword.toLowerCase();
 
-        // Kiểm tra độ dài keyword để quyết định dùng FULLTEXT hay LIKE
-        // FULLTEXT thường yêu cầu minimum word length >= 3-4 ký tự
-        const useFulltext = keyword.length >= 3;
+        // Tách keyword thành các từ riêng lẻ để tìm kiếm linh hoạt hơn
+        const keywords = keyword.split(/\s+/).filter(k => k.length > 0);
+
+        // Sử dụng FULLTEXT search với NATURAL LANGUAGE MODE (tốt hơn cho tiếng Việt)
+        // Minimum word length thường là 3-4 ký tự, nhưng với ngram parser có thể thấp hơn
+        const useFulltext = keyword.length >= 2;
 
         if (useFulltext) {
-            // Thử dùng FULLTEXT MATCH AGAINST trên:
-            //  - ten_sach      (trọng số 3)
-            //  - ten_tac_gia   (trọng số 2)
-            //  - ten_danh_muc  (trọng số 1)
             try {
-                // Tạo search term với wildcard cho BOOLEAN MODE để tìm kiếm tốt hơn
-                const searchTerm = `*${keyword}*`;
+                // Tạo search term cho FULLTEXT - sử dụng tất cả các từ
+                // FULLTEXT MATCH sẽ tự động tìm từng từ riêng lẻ
+                // Ví dụ: "con giàu" sẽ tìm sách có chứa "con" VÀ "giàu" (không cần liên tiếp)
+                const searchTerm = keywords.join(' ');
 
+                // Query với FULLTEXT search trên nhiều bảng
+                // NATURAL LANGUAGE MODE sẽ tìm các từ riêng lẻ, không cần đúng thứ tự
                 const rows = await prisma.$queryRawUnsafe(
                     `
-                    SELECT 
+                    SELECT DISTINCT
                         s.sach_id,
                         (
-                            COALESCE(MATCH(s.ten_sach) AGAINST (? IN BOOLEAN MODE), 0) * 3 +
-                            COALESCE(MATCH(t.ten_tac_gia) AGAINST (? IN BOOLEAN MODE), 0) * 2 +
-                            COALESCE(MATCH(dm.ten_danh_muc) AGAINST (? IN BOOLEAN MODE), 0) * 1
+                            COALESCE(MATCH(s.ten_sach, s.mo_ta) AGAINST (? IN NATURAL LANGUAGE MODE), 0) * 5 +
+                            COALESCE(MATCH(t.ten_tac_gia) AGAINST (? IN NATURAL LANGUAGE MODE), 0) * 3 +
+                            COALESCE(MATCH(dm.ten_danh_muc) AGAINST (? IN NATURAL LANGUAGE MODE), 0) * 2 +
+                            COALESCE(MATCH(nxb.ten_nha_xuat_ban) AGAINST (? IN NATURAL LANGUAGE MODE), 0) * 1 +
+                            COALESCE(MATCH(th.ten_thuong_hieu) AGAINST (? IN NATURAL LANGUAGE MODE), 0) * 1
                         ) AS relevance
                     FROM sach s
-                    LEFT JOIN tacgia t 
-                        ON t.tac_gia_id = s.tac_gia_id
-                    LEFT JOIN sach_danhmuc sd 
-                        ON sd.sach_id = s.sach_id
-                    LEFT JOIN danhmuc dm 
-                        ON dm.danh_muc_id = sd.danh_muc_id
+                    LEFT JOIN tacgia t ON t.tac_gia_id = s.tac_gia_id
+                    LEFT JOIN sach_danhmuc sd ON sd.sach_id = s.sach_id
+                    LEFT JOIN danhmuc dm ON dm.danh_muc_id = sd.danh_muc_id
+                    LEFT JOIN nhaxuatban nxb ON nxb.nha_xuat_ban_id = s.nha_xuat_ban_id
+                    LEFT JOIN thuonghieu th ON th.thuong_hieu_id = s.thuong_hieu_id
                     WHERE 
-                        MATCH(s.ten_sach) AGAINST (? IN BOOLEAN MODE)
-                        OR MATCH(t.ten_tac_gia) AGAINST (? IN BOOLEAN MODE)
-                        OR MATCH(dm.ten_danh_muc) AGAINST (? IN BOOLEAN MODE)
-                    ORDER BY relevance DESC
-                    LIMIT 100
+                        (MATCH(s.ten_sach, s.mo_ta) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(t.ten_tac_gia) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(dm.ten_danh_muc) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(nxb.ten_nha_xuat_ban) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(th.ten_thuong_hieu) AGAINST (? IN NATURAL LANGUAGE MODE))
+                        AND s.trang_thai = 1
+                    ORDER BY relevance DESC, s.ten_sach ASC
+                    LIMIT 200
                     `,
-                    searchTerm,
-                    searchTerm,
-                    searchTerm,
-                    searchTerm,
-                    searchTerm
+                    searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
+                    searchTerm, searchTerm, searchTerm, searchTerm, searchTerm
                 );
 
-                if (Array.isArray(rows)) {
+                if (Array.isArray(rows) && rows.length > 0) {
                     sachIds = rows
                         .map((r) => r.sach_id)
                         .filter((id) => typeof id === 'number' && !isNaN(id));
                 }
             } catch (err) {
-                console.error('Fulltext search error, fallback to LIKE:', err?.message || err);
+                console.error('Fulltext search error:', err?.message || err);
+                // Nếu fulltext search lỗi (có thể do chưa có index), sẽ fallback
             }
         }
 
-        let data;
+        try {
+            const likeRows1 = await prisma.$queryRawUnsafe(
+                `
+                SELECT DISTINCT s.sach_id
+                FROM sach s
+                LEFT JOIN tacgia t ON t.tac_gia_id = s.tac_gia_id
+                LEFT JOIN sach_danhmuc sd ON sd.sach_id = s.sach_id
+                LEFT JOIN danhmuc dm ON dm.danh_muc_id = sd.danh_muc_id
+                WHERE s.trang_thai = 1
+                AND (
+                    LOWER(s.ten_sach) LIKE ?
+                    OR LOWER(s.mo_ta) LIKE ?
+                    OR LOWER(t.ten_tac_gia) LIKE ?
+                    OR LOWER(dm.ten_danh_muc) LIKE ?
+                )
+                LIMIT 200
+                `,
+                `%${keywordLower}%`,
+                `%${keywordLower}%`,
+                `%${keywordLower}%`,
+                `%${keywordLower}%`
+            );
 
+            if (Array.isArray(likeRows1) && likeRows1.length > 0) {
+                const likeIds1 = likeRows1
+                    .map((r) => r.sach_id)
+                    .filter((id) => typeof id === 'number' && !isNaN(id));
+
+                likeIds1.forEach(id => {
+                    if (!sachIds.includes(id)) {
+                        sachIds.push(id);
+                    }
+                });
+            }
+
+            // 2. Nếu có 3+ từ, tìm với các cặp từ liền nhau bằng LIKE
+            // Ví dụ: "dạy làm giàu" → tìm "dạy làm" và "làm giàu"
+            if (keywords.length >= 3) {
+                const wordPairs = [];
+                for (let i = 0; i < keywords.length - 1; i++) {
+                    const pair = `${keywords[i]} ${keywords[i + 1]}`.toLowerCase();
+                    wordPairs.push(pair);
+                }
+
+                // Tìm với từng cặp từ liền nhau
+                for (const pair of wordPairs) {
+                    try {
+                        const likeRows2 = await prisma.$queryRawUnsafe(
+                            `
+                            SELECT DISTINCT s.sach_id
+                            FROM sach s
+                            LEFT JOIN tacgia t ON t.tac_gia_id = s.tac_gia_id
+                            LEFT JOIN sach_danhmuc sd ON sd.sach_id = s.sach_id
+                            LEFT JOIN danhmuc dm ON dm.danh_muc_id = sd.danh_muc_id
+                            WHERE s.trang_thai = 1
+                            AND (
+                                LOWER(s.ten_sach) LIKE ?
+                                OR LOWER(s.mo_ta) LIKE ?
+                                OR LOWER(t.ten_tac_gia) LIKE ?
+                                OR LOWER(dm.ten_danh_muc) LIKE ?
+                            )
+                            LIMIT 100
+                            `,
+                            `%${pair}%`,
+                            `%${pair}%`,
+                            `%${pair}%`,
+                            `%${pair}%`
+                        );
+
+                        if (Array.isArray(likeRows2) && likeRows2.length > 0) {
+                            const likeIds2 = likeRows2
+                                .map((r) => r.sach_id)
+                                .filter((id) => typeof id === 'number' && !isNaN(id));
+
+                            likeIds2.forEach(id => {
+                                if (!sachIds.includes(id)) {
+                                    sachIds.push(id);
+                                }
+                            });
+                        }
+                    } catch (pairErr) {
+                        console.error(`Error searching for pair "${pair}":`, pairErr?.message || pairErr);
+                    }
+                }
+            } else if (keywords.length === 2) {
+                // Nếu có 2 từ, tìm với cả 2 từ bằng LIKE
+                const pair = keywords.join(' ').toLowerCase();
+                try {
+                    const likeRows2 = await prisma.$queryRawUnsafe(
+                        `
+                        SELECT DISTINCT s.sach_id
+                        FROM sach s
+                        LEFT JOIN tacgia t ON t.tac_gia_id = s.tac_gia_id
+                        LEFT JOIN sach_danhmuc sd ON sd.sach_id = s.sach_id
+                        LEFT JOIN danhmuc dm ON dm.danh_muc_id = sd.danh_muc_id
+                        WHERE s.trang_thai = 1
+                        AND (
+                            LOWER(s.ten_sach) LIKE ?
+                            OR LOWER(s.mo_ta) LIKE ?
+                            OR LOWER(t.ten_tac_gia) LIKE ?
+                            OR LOWER(dm.ten_danh_muc) LIKE ?
+                        )
+                        LIMIT 200
+                        `,
+                        `%${pair}%`,
+                        `%${pair}%`,
+                        `%${pair}%`,
+                        `%${pair}%`
+                    );
+
+                    if (Array.isArray(likeRows2) && likeRows2.length > 0) {
+                        const likeIds2 = likeRows2
+                            .map((r) => r.sach_id)
+                            .filter((id) => typeof id === 'number' && !isNaN(id));
+
+                        likeIds2.forEach(id => {
+                            if (!sachIds.includes(id)) {
+                                sachIds.push(id);
+                            }
+                        });
+                    }
+                } catch (pairErr) {
+                    console.error(`Error searching for pair "${pair}":`, pairErr?.message || pairErr);
+                }
+            }
+        } catch (err) {
+            console.error('LIKE search error:', err?.message || err);
+        }
+
+
+        // Lấy dữ liệu đầy đủ
         if (sachIds.length > 0) {
-            // Lấy dữ liệu đầy đủ theo danh sách ID (giữ nguyên thứ tự relevance)
+            // Nếu có kết quả từ FULLTEXT hoặc LIKE, lấy dữ liệu đầy đủ
             data = await prisma.sach.findMany({
                 where: {
-                    sach_id: { in: sachIds }
+                    sach_id: { in: sachIds },
+                    trang_thai: true
                 },
                 include: {
                     tacgia: true,
@@ -216,90 +353,242 @@ export const searchSach = async (req, res) => {
                 }
             });
 
-            const orderMap = new Map();
-            sachIds.forEach((id, idx) => orderMap.set(id, idx));
-            data.sort((a, b) => (orderMap.get(a.sach_id) ?? 0) - (orderMap.get(b.sach_id) ?? 0));
-        }
+            // Filter linh hoạt: chỉ cần có các từ trong keyword (không cần đúng thứ tự, không cần liên tiếp)
+            data = data.filter(book => {
+                const title = (book.ten_sach || '').toLowerCase();
+                const desc = (book.mo_ta || '').toLowerCase();
+                const author = (book.tacgia?.ten_tac_gia || '').toLowerCase();
+                const searchText = `${title} ${desc} ${author}`.toLowerCase();
 
-        // Nếu không có kết quả từ FULLTEXT hoặc keyword quá ngắn, dùng LIKE search
-        if (sachIds.length === 0) {
-            // Fallback: tìm kiếm LIKE trên tên sách, mã sách, tên tác giả, tên danh mục
-            // MySQL contains đã là case-insensitive mặc định
-            data = await prisma.sach.findMany({
-                where: {
-                    OR: [
-                        { ten_sach: { contains: keyword } },
-                        { ma_sach: { contains: keyword } },
-                        { tacgia: { ten_tac_gia: { contains: keyword } } },
-                        {
-                            sach_danhmuc: {
-                                some: {
-                                    danhmuc: {
-                                        ten_danh_muc: { contains: keyword }
-                                    }
+                // Kiểm tra xem có chứa cụm từ chính xác không (ưu tiên cao nhất)
+                if (searchText.includes(keywordLower)) {
+                    return true;
+                }
+
+                // Nếu có 3+ từ, kiểm tra xem có chứa ít nhất 1 cặp từ liền nhau không
+                // Ví dụ: "dạy làm giàu" → tìm được sách có "dạy làm" hoặc "làm giàu"
+                if (keywords.length >= 3) {
+                    // Tạo các cặp từ liền nhau
+                    const wordPairs = [];
+                    for (let i = 0; i < keywords.length - 1; i++) {
+                        const pair = `${keywords[i]} ${keywords[i + 1]}`.toLowerCase();
+                        wordPairs.push(pair);
+                    }
+
+                    // Kiểm tra xem có chứa ít nhất 1 cặp từ liền nhau không
+                    // Đây là điều kiện chính: nếu có 2 từ liền nhau thì hiển thị
+                    const hasPair = wordPairs.some(pair => {
+                        // Tìm cụm từ liền nhau trong text (có thể có khoảng trắng hoặc không)
+                        return searchText.includes(pair);
+                    });
+
+                    if (hasPair) {
+                        return true; // Có chứa ít nhất 1 cặp từ liền nhau → hiển thị
+                    }
+
+                    // Nếu không có cặp từ liền nhau, kiểm tra số từ đơn lẻ
+                    // Phải có ít nhất 2 từ (vì đã tìm với các cặp từ rồi)
+                    const matchedWords = keywords.filter(word => {
+                        const wordLower = word.toLowerCase();
+                        return searchText.includes(wordLower);
+                    });
+                    // Phải có ít nhất 2 từ đơn lẻ
+                    return matchedWords.length >= 2;
+                }
+
+                // Nếu có 2 từ, phải có cả 2 từ
+                if (keywords.length === 2) {
+                    const word1 = keywords[0].toLowerCase();
+                    const word2 = keywords[1].toLowerCase();
+                    // Phải có cả 2 từ
+                    return searchText.includes(word1) && searchText.includes(word2);
+                }
+
+                // Nếu chỉ có 1 từ, kiểm tra xem có chứa từ đó hoặc một phần
+                if (keywords.length === 1) {
+                    const word = keywords[0].toLowerCase();
+                    if (word.length >= 3) {
+                        // Tìm với ít nhất 60% số ký tự đầu tiên
+                        const minChars = Math.max(2, Math.floor(word.length * 0.6));
+                        const partialWord = word.substring(0, minChars);
+                        return searchText.includes(word) || searchText.includes(partialWord);
+                    }
+                    return searchText.includes(word);
+                }
+
+                return false;
+            });
+
+            // Sắp xếp theo độ liên quan: cụm từ chính xác trước, sau đó là số từ khớp
+            data.sort((a, b) => {
+                const aTitle = (a.ten_sach || '').toLowerCase();
+                const bTitle = (b.ten_sach || '').toLowerCase();
+                const aDesc = (a.mo_ta || '').toLowerCase();
+                const bDesc = (b.mo_ta || '').toLowerCase();
+                const aAuthor = (a.tacgia?.ten_tac_gia || '').toLowerCase();
+                const bAuthor = (b.tacgia?.ten_tac_gia || '').toLowerCase();
+
+                // Ưu tiên sách có cụm từ chính xác trong tên (trọng số cao nhất)
+                const aHasExactInTitle = aTitle.includes(keywordLower);
+                const bHasExactInTitle = bTitle.includes(keywordLower);
+                if (aHasExactInTitle && !bHasExactInTitle) return -1;
+                if (!aHasExactInTitle && bHasExactInTitle) return 1;
+
+                // Ưu tiên sách có cụm từ chính xác trong mô tả hoặc tác giả
+                const aHasExact = aDesc.includes(keywordLower) || aAuthor.includes(keywordLower);
+                const bHasExact = bDesc.includes(keywordLower) || bAuthor.includes(keywordLower);
+                if (aHasExact && !bHasExact) return -1;
+                if (!aHasExact && bHasExact) return 1;
+
+                // Đếm số từ khớp (trong tên, mô tả, tác giả)
+                const aMatchedWords = keywords.filter(word => {
+                    const wordLower = word.toLowerCase();
+                    return aTitle.includes(wordLower) || aDesc.includes(wordLower) || aAuthor.includes(wordLower);
+                }).length;
+                const bMatchedWords = keywords.filter(word => {
+                    const wordLower = word.toLowerCase();
+                    return bTitle.includes(wordLower) || bDesc.includes(wordLower) || bAuthor.includes(wordLower);
+                }).length;
+
+                if (aMatchedWords !== bMatchedWords) {
+                    return bMatchedWords - aMatchedWords; // Nhiều từ khớp hơn trước
+                }
+
+                // Nếu cả hai đều có hoặc không có, sắp xếp theo tên
+                return aTitle.localeCompare(bTitle);
+            });
+        } else {
+            // Fallback: Thử dùng FULLTEXT MATCH một lần nữa với keyword ngắn hơn
+            // Hoặc nếu không có fulltext index, dùng Prisma contains (không phải LIKE)
+            try {
+                // Thử lại với FULLTEXT MATCH (có thể keyword quá ngắn lần đầu)
+                const matchSearchTerm = keywords.join(' ');
+                const matchRows = await prisma.$queryRawUnsafe(
+                    `
+                    SELECT DISTINCT s.sach_id
+                    FROM sach s
+                    LEFT JOIN tacgia t ON t.tac_gia_id = s.tac_gia_id
+                    LEFT JOIN sach_danhmuc sd ON sd.sach_id = s.sach_id
+                    LEFT JOIN danhmuc dm ON dm.danh_muc_id = sd.danh_muc_id
+                    LEFT JOIN nhaxuatban nxb ON nxb.nha_xuat_ban_id = s.nha_xuat_ban_id
+                    LEFT JOIN thuonghieu th ON th.thuong_hieu_id = s.thuong_hieu_id
+                    WHERE s.trang_thai = 1
+                    AND (
+                        MATCH(s.ten_sach, s.mo_ta) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(t.ten_tac_gia) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(dm.ten_danh_muc) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(nxb.ten_nha_xuat_ban) AGAINST (? IN NATURAL LANGUAGE MODE)
+                        OR MATCH(th.ten_thuong_hieu) AGAINST (? IN NATURAL LANGUAGE MODE)
+                    )
+                    LIMIT 100
+                    `,
+                    matchSearchTerm, matchSearchTerm, matchSearchTerm, matchSearchTerm, matchSearchTerm
+                );
+
+                if (Array.isArray(matchRows) && matchRows.length > 0) {
+                    sachIds = matchRows
+                        .map((r) => r.sach_id)
+                        .filter((id) => typeof id === 'number' && !isNaN(id));
+                }
+            } catch (matchErr) {
+                console.error('Fallback MATCH search error:', matchErr?.message || matchErr);
+            }
+
+            // Nếu vẫn không có kết quả, dùng Prisma contains (không phải LIKE)
+            if (sachIds.length === 0) {
+                const searchConditions = [
+                    { ten_sach: { contains: keyword } },
+                    { ma_sach: { contains: keyword } },
+                    { mo_ta: { contains: keyword } },
+                    { tacgia: { ten_tac_gia: { contains: keyword } } },
+                    { nhaxuatban: { ten_nha_xuat_ban: { contains: keyword } } },
+                    { thuonghieu: { ten_thuong_hieu: { contains: keyword } } },
+                    {
+                        sach_danhmuc: {
+                            some: {
+                                danhmuc: {
+                                    ten_danh_muc: { contains: keyword }
                                 }
                             }
                         }
-                    ]
-                },
-                include: {
-                    tacgia: true,
-                    nhaxuatban: true,
-                    thuonghieu: true,
-                    nhacungcap: true,
-                    ngonngu: true,
-                    nguoibiendich: true,
-                    dotuoi: true,
-                    sach_danhmuc: {
-                        include: {
-                            danhmuc: true
-                        }
-                    },
-                    anhsach: {
-                        orderBy: {
-                            thu_tu: 'asc'
-                        },
-                        take: 1
                     }
-                },
-                // Sắp xếp theo độ liên quan (tên sách trước, sau đó tác giả)
-                orderBy: [
-                    { ten_sach: 'asc' }
-                ],
-                take: 100
-            });
-        } else {
-            // Nếu có kết quả từ FULLTEXT, lấy dữ liệu đầy đủ
-            data = await prisma.sach.findMany({
-                where: {
-                    sach_id: { in: sachIds }
-                },
-                include: {
-                    tacgia: true,
-                    nhaxuatban: true,
-                    thuonghieu: true,
-                    nhacungcap: true,
-                    ngonngu: true,
-                    nguoibiendich: true,
-                    dotuoi: true,
-                    sach_danhmuc: {
-                        include: {
-                            danhmuc: true
-                        }
-                    },
-                    anhsach: {
-                        orderBy: {
-                            thu_tu: 'asc'
-                        },
-                        take: 1
-                    }
-                }
-            });
+                ];
 
-            // Giữ nguyên thứ tự relevance từ FULLTEXT
-            const orderMap = new Map();
-            sachIds.forEach((id, idx) => orderMap.set(id, idx));
-            data.sort((a, b) => (orderMap.get(a.sach_id) ?? 0) - (orderMap.get(b.sach_id) ?? 0));
+                data = await prisma.sach.findMany({
+                    where: {
+                        AND: [
+                            {
+                                OR: searchConditions
+                            },
+                            { trang_thai: true }
+                        ]
+                    },
+                    include: {
+                        tacgia: true,
+                        nhaxuatban: true,
+                        thuonghieu: true,
+                        nhacungcap: true,
+                        ngonngu: true,
+                        nguoibiendich: true,
+                        dotuoi: true,
+                        sach_danhmuc: {
+                            include: {
+                                danhmuc: true
+                            }
+                        },
+                        anhsach: {
+                            orderBy: {
+                                thu_tu: 'asc'
+                            },
+                            take: 1
+                        }
+                    },
+                    // Sắp xếp theo độ liên quan (tên sách trước)
+                    orderBy: [
+                        { ten_sach: 'asc' }
+                    ],
+                    take: 100
+                });
+
+                // Filter lại để đảm bảo chỉ giữ lại sách có chứa keyword
+                data = data.filter(book => {
+                    const title = (book.ten_sach || '').toLowerCase();
+                    const desc = (book.mo_ta || '').toLowerCase();
+                    const author = (book.tacgia?.ten_tac_gia || '').toLowerCase();
+                    const searchText = `${title} ${desc} ${author}`.toLowerCase();
+
+                    // Phải có chứa keyword (cụm từ chính xác)
+                    return searchText.includes(keywordLower);
+                });
+            } else {
+                // Nếu có kết quả từ MATCH, lấy dữ liệu đầy đủ
+                data = await prisma.sach.findMany({
+                    where: {
+                        sach_id: { in: sachIds },
+                        trang_thai: true
+                    },
+                    include: {
+                        tacgia: true,
+                        nhaxuatban: true,
+                        thuonghieu: true,
+                        nhacungcap: true,
+                        ngonngu: true,
+                        nguoibiendich: true,
+                        dotuoi: true,
+                        sach_danhmuc: {
+                            include: {
+                                danhmuc: true
+                            }
+                        },
+                        anhsach: {
+                            orderBy: {
+                                thu_tu: 'asc'
+                            },
+                            take: 1
+                        }
+                    }
+                });
+            }
         }
 
         // Trả về kết quả tìm kiếm (kể cả khi rỗng)
