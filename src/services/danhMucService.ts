@@ -19,6 +19,7 @@ export interface DanhMuc {
   ngay_tao?: string;
   ngay_cap_nhat?: string;
   danhmuccha?: DanhMucCha;
+  so_luong_sach?: number;
 }
 
 export interface CreateDanhMucRequest {

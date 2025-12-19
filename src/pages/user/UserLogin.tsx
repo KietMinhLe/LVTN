@@ -6,13 +6,13 @@ import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Lock, Mail, Loader2, User, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
 
 const UserLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const { login, isAuthenticated } = useUserAuth();
   const navigate = useNavigate();
 
@@ -25,9 +25,10 @@ const UserLogin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(''); // Xóa lỗi cũ
 
     if (!email || !password) {
-      toast.error('Vui lòng nhập đầy đủ email và mật khẩu');
+      setError('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
@@ -45,11 +46,14 @@ const UserLogin = () => {
           navigate('/', { replace: true });
         }, 100);
       } else {
+        setError('Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.');
         setLoading(false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Login submit error:', error);
-      toast.error('Có lỗi xảy ra khi đăng nhập');
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Có lỗi xảy ra khi đăng nhập';
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -84,6 +88,13 @@ const UserLogin = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-md text-sm">
+                  {error}
+                </div>
+              )}
+
               {/* Email Input */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium flex items-center gap-2 text-slate-900 dark:text-slate-100">
@@ -98,9 +109,11 @@ const UserLogin = () => {
                     name="email"
                     placeholder="your.email@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError(''); // Xóa lỗi khi người dùng nhập
+                    }}
                     className="pl-10 h-11"
-                    required
                     disabled={loading}
                     autoComplete="email"
                   />
@@ -121,11 +134,12 @@ const UserLogin = () => {
                     name="password"
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError(''); // Xóa lỗi khi người dùng nhập
+                    }}
                     className="pl-10 pr-10 h-11"
-                    required
                     disabled={loading}
-                    minLength={6}
                     autoComplete="current-password"
                   />
                   <button
@@ -147,7 +161,7 @@ const UserLogin = () => {
               <Button
                 type="submit"
                 className="w-full h-11 text-base font-medium bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all"
-                disabled={loading || !email || !password}
+                disabled={loading}
                 size="lg"
               >
                 {loading ? (
@@ -163,6 +177,16 @@ const UserLogin = () => {
                 )}
               </Button>
             </form>
+
+            {/* Forgot Password Link */}
+            <div className="mt-4 text-center text-sm">
+              <Link
+                to="/forgot-password"
+                className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              >
+                Quên mật khẩu?
+              </Link>
+            </div>
 
             {/* Register Link */}
             <div className="mt-6 text-center text-sm">

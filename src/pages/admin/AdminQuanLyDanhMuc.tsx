@@ -153,6 +153,11 @@ const AdminQuanLyDanhMuc = () => {
   };
 
   const handleOpenDeleteDialog = (danhMuc: DanhMuc) => {
+    // Kiểm tra nếu danh mục có sách thì không cho xóa
+    if (danhMuc.so_luong_sach !== undefined && danhMuc.so_luong_sach > 0) {
+      toast.error(`Không thể xóa danh mục "${danhMuc.ten_danh_muc}" vì đang có ${danhMuc.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang danh mục khác trước.`);
+      return;
+    }
     setSelectedDanhMuc(danhMuc);
     setIsDeleteDialogOpen(true);
   };
@@ -170,12 +175,12 @@ const AdminQuanLyDanhMuc = () => {
     
     // Validation
     if (!formData.ten_danh_muc || !formData.slug || !formData.danh_muc_cha_id) {
-      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.danh_muc_cha_id || formData.danh_muc_cha_id === 0) {
-      toast.error('Vui lòng chọn danh mục cha');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -213,6 +218,15 @@ const AdminQuanLyDanhMuc = () => {
   const handleDelete = async () => {
     if (!selectedDanhMuc) return;
 
+    // Kiểm tra lại số lượng sách trước khi xóa (double check)
+    if (selectedDanhMuc.so_luong_sach !== undefined && selectedDanhMuc.so_luong_sach > 0) {
+      toast.error(`Không thể xóa danh mục "${selectedDanhMuc.ten_danh_muc}" vì đang có ${selectedDanhMuc.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang danh mục khác trước.`);
+      setIsDeleteDialogOpen(false);
+      // Refresh dữ liệu để cập nhật số lượng sách
+      await loadData();
+      return;
+    }
+
     setFormLoading(true);
     try {
       await deleteDanhMuc(selectedDanhMuc.danh_muc_id);
@@ -228,6 +242,11 @@ const AdminQuanLyDanhMuc = () => {
         errorMessage = axiosError.response?.data?.message || 
                       axiosError.response?.data?.error || 
                       `Lỗi ${axiosError.response?.status || 500}`;
+        
+        // Nếu lỗi là do có sách, refresh dữ liệu để cập nhật số lượng sách
+        if (axiosError.response?.status === 400 && errorMessage.includes('sách')) {
+          await loadData();
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -343,6 +362,7 @@ const AdminQuanLyDanhMuc = () => {
                     <th className="text-left p-3 font-semibold">Tên danh mục</th>
                     <th className="text-left p-3 font-semibold">Slug</th>
                     <th className="text-left p-3 font-semibold">Danh mục cha</th>
+                    <th className="text-left p-3 font-semibold">Số lượng sách</th>
                     <th className="text-left p-3 font-semibold">Mô tả</th>
                     <th className="text-left p-3 font-semibold">Ngày tạo</th>
                     <th className="text-left p-3 font-semibold">Thao tác</th>
@@ -360,6 +380,14 @@ const AdminQuanLyDanhMuc = () => {
                         ) : (
                           <span className="text-slate-500 dark:text-slate-400">N/A</span>
                         )}
+                      </td>
+                      <td className="p-3">
+                        <Badge 
+                          variant={danhMuc.so_luong_sach && danhMuc.so_luong_sach > 0 ? "default" : "secondary"}
+                          className={danhMuc.so_luong_sach && danhMuc.so_luong_sach > 0 ? "bg-primary" : ""}
+                        >
+                          {danhMuc.so_luong_sach ?? 0} sách
+                        </Badge>
                       </td>
                       <td className="p-3">
                         <div className="max-w-xs truncate text-sm text-slate-600 dark:text-slate-400">
@@ -391,8 +419,17 @@ const AdminQuanLyDanhMuc = () => {
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => handleOpenDeleteDialog(danhMuc)}
-                            title="Xóa"
-                            className="text-destructive hover:text-destructive"
+                            title={
+                              danhMuc.so_luong_sach && danhMuc.so_luong_sach > 0
+                                ? `Không thể xóa vì có ${danhMuc.so_luong_sach} sách`
+                                : "Xóa"
+                            }
+                            disabled={danhMuc.so_luong_sach !== undefined && danhMuc.so_luong_sach > 0}
+                            className={`text-destructive hover:text-destructive ${
+                              danhMuc.so_luong_sach && danhMuc.so_luong_sach > 0
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -423,7 +460,6 @@ const AdminQuanLyDanhMuc = () => {
                 value={formData.ten_danh_muc}
                 onChange={(e) => handleTenDanhMucChange(e.target.value)}
                 placeholder="Ví dụ: Sách văn học"
-                required
               />
             </div>
 
@@ -433,7 +469,6 @@ const AdminQuanLyDanhMuc = () => {
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                 placeholder="sach-van-hoc"
-                required
               />
               <p className="text-xs text-slate-600 dark:text-slate-400">
                 Slug sẽ được tự động tạo từ tên danh mục nếu để trống
@@ -457,7 +492,6 @@ const AdminQuanLyDanhMuc = () => {
                 value={formData.danh_muc_cha_id}
                 onChange={(e) => setFormData({ ...formData, danh_muc_cha_id: Number(e.target.value) })}
                 className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                required
               >
                 <option value={0}>Chọn danh mục cha</option>
                 {danhMucChaList.map((dmc) => (
@@ -511,6 +545,17 @@ const AdminQuanLyDanhMuc = () => {
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Slug</label>
                   <p className="text-base font-mono text-slate-900 dark:text-slate-100">{selectedDanhMuc.slug}</p>
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Số lượng sách</label>
+                  <p className="text-base text-slate-900 dark:text-slate-100">
+                    <Badge 
+                      variant={selectedDanhMuc.so_luong_sach && selectedDanhMuc.so_luong_sach > 0 ? "default" : "secondary"}
+                      className={selectedDanhMuc.so_luong_sach && selectedDanhMuc.so_luong_sach > 0 ? "bg-primary" : ""}
+                    >
+                      {selectedDanhMuc.so_luong_sach ?? 0} sách
+                    </Badge>
+                  </p>
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tên danh mục</label>
@@ -563,25 +608,77 @@ const AdminQuanLyDanhMuc = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa danh mục "{selectedDanhMuc?.ten_danh_muc}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa danh mục
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              {selectedDanhMuc && (
+                <>
+                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                    <p className="text-base font-semibold text-destructive mb-2">
+                      Bạn có chắc chắn muốn xóa danh mục này không?
+                    </p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                      <span className="font-medium">Tên danh mục:</span> {selectedDanhMuc.ten_danh_muc}
+                    </p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                      <span className="font-medium">Mã danh mục:</span> {selectedDanhMuc.danh_muc_id}
+                    </p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                      <span className="font-medium">Slug:</span> {selectedDanhMuc.slug}
+                    </p>
+                  </div>
+                  {selectedDanhMuc.so_luong_sach !== undefined && selectedDanhMuc.so_luong_sach > 0 ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                        ❌ Không thể xóa:
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                        Danh mục này đang có {selectedDanhMuc.so_luong_sach} sách. Vui lòng xóa hoặc chuyển tất cả sách sang danh mục khác trước khi xóa danh mục này.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                        ⚠️ Cảnh báo:
+                      </p>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                        <li>Hành động này không thể hoàn tác</li>
+                        <li>Danh mục sẽ bị xóa vĩnh viễn</li>
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading || (selectedDanhMuc?.so_luong_sach !== undefined && selectedDanhMuc.so_luong_sach > 0)}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xóa
+                </>
               )}
             </Button>
           </DialogFooter>

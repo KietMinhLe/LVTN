@@ -134,3 +134,9 @@ export const deleteDonHang = async (id: number): Promise<void> => {
     await apiClient.delete(`/donhang/${id}`);
 }
 
+// Hủy đơn hàng
+export const cancelDonHang = async (id: number): Promise<DonHang> => {
+    const response = await apiClient.patch<DonHangResponse>(`/donhang/${id}/cancel`);
+    return response.data.data;
+}
+

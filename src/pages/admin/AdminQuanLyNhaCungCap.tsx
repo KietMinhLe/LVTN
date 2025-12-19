@@ -14,6 +14,7 @@ import {
 } from '../../services/nhaCungCapService';
 import { Plus, Pencil, Trash2, Eye, Search, Loader2, ArrowLeft, Home, Truck, ArrowUpDown, Phone, MapPin, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { Badge } from '../../components/ui/badge';
 
 const AdminQuanLyNhaCungCap = () => {
   const navigate = useNavigate();
@@ -130,6 +131,11 @@ const AdminQuanLyNhaCungCap = () => {
   };
 
   const handleOpenDeleteDialog = (nhaCungCap: NhaCungCap) => {
+    // Kiểm tra nếu nhà cung cấp có sách thì không cho xóa
+    if (nhaCungCap.so_luong_sach !== undefined && nhaCungCap.so_luong_sach > 0) {
+      toast.error(`Không thể xóa nhà cung cấp "${nhaCungCap.ten_nha_cung_cap}" vì đang có ${nhaCungCap.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang nhà cung cấp khác trước.`);
+      return;
+    }
     setSelectedNhaCungCap(nhaCungCap);
     setIsDeleteDialogOpen(true);
   };
@@ -139,19 +145,19 @@ const AdminQuanLyNhaCungCap = () => {
     
     // Validation
     if (!formData.ten_nha_cung_cap.trim()) {
-      toast.error('Vui lòng nhập tên nhà cung cấp');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.email.trim()) {
-      toast.error('Vui lòng nhập email');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
-      toast.error('Email không hợp lệ');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -189,6 +195,14 @@ const AdminQuanLyNhaCungCap = () => {
   const handleDelete = async () => {
     if (!selectedNhaCungCap) return;
 
+    // Kiểm tra lại số lượng sách trước khi xóa (double check)
+    if (selectedNhaCungCap.so_luong_sach !== undefined && selectedNhaCungCap.so_luong_sach > 0) {
+      toast.error(`Không thể xóa nhà cung cấp "${selectedNhaCungCap.ten_nha_cung_cap}" vì đang có ${selectedNhaCungCap.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang nhà cung cấp khác trước.`);
+      setIsDeleteDialogOpen(false);
+      await loadData();
+      return;
+    }
+
     setFormLoading(true);
     try {
       await deleteNhaCungCap(selectedNhaCungCap.nha_cung_cap_id);
@@ -204,6 +218,10 @@ const AdminQuanLyNhaCungCap = () => {
         errorMessage = axiosError.response?.data?.message || 
                       axiosError.response?.data?.error || 
                       `Lỗi ${axiosError.response?.status || 500}`;
+        
+        if (axiosError.response?.status === 400 && errorMessage.includes('sách')) {
+          await loadData();
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -320,6 +338,7 @@ const AdminQuanLyNhaCungCap = () => {
                     <th className="text-left p-3 font-semibold">Email</th>
                     <th className="text-left p-3 font-semibold">Địa chỉ</th>
                     <th className="text-left p-3 font-semibold">Số điện thoại</th>
+                    <th className="text-left p-3 font-semibold">Số lượng sách</th>
                     <th className="text-left p-3 font-semibold">Ngày tạo</th>
                     <th className="text-left p-3 font-semibold">Thao tác</th>
                   </tr>
@@ -365,6 +384,14 @@ const AdminQuanLyNhaCungCap = () => {
                           )}
                         </div>
                       </td>
+                      <td className="p-3">
+                        <Badge 
+                          variant={nhaCungCap.so_luong_sach && nhaCungCap.so_luong_sach > 0 ? "default" : "secondary"}
+                          className={nhaCungCap.so_luong_sach && nhaCungCap.so_luong_sach > 0 ? "bg-primary" : ""}
+                        >
+                          {nhaCungCap.so_luong_sach ?? 0} sách
+                        </Badge>
+                      </td>
                       <td className="p-3 text-sm text-slate-600 dark:text-slate-400">
                         {formatDate(nhaCungCap.ngay_tao)}
                       </td>
@@ -390,8 +417,17 @@ const AdminQuanLyNhaCungCap = () => {
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => handleOpenDeleteDialog(nhaCungCap)}
-                            title="Xóa"
-                            className="text-destructive hover:text-destructive"
+                            title={
+                              nhaCungCap.so_luong_sach && nhaCungCap.so_luong_sach > 0
+                                ? `Không thể xóa vì có ${nhaCungCap.so_luong_sach} sách`
+                                : "Xóa"
+                            }
+                            disabled={nhaCungCap.so_luong_sach !== undefined && nhaCungCap.so_luong_sach > 0}
+                            className={`text-destructive hover:text-destructive ${
+                              nhaCungCap.so_luong_sach && nhaCungCap.so_luong_sach > 0
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -422,7 +458,6 @@ const AdminQuanLyNhaCungCap = () => {
                 value={formData.ten_nha_cung_cap}
                 onChange={(e) => setFormData({ ...formData, ten_nha_cung_cap: e.target.value })}
                 placeholder="Ví dụ: Nhà sách ABC"
-                required
               />
             </div>
 
@@ -433,7 +468,6 @@ const AdminQuanLyNhaCungCap = () => {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="Ví dụ: contact@nhasachabc.com"
-                required
               />
             </div>
 
@@ -549,25 +583,77 @@ const AdminQuanLyNhaCungCap = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa nhà cung cấp "{selectedNhaCungCap?.ten_nha_cung_cap}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa nhà cung cấp
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa nhà cung cấp này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên nhà cung cấp:</span> {selectedNhaCungCap?.ten_nha_cung_cap}
+                </p>
+                {selectedNhaCungCap?.nha_cung_cap_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedNhaCungCap.nha_cung_cap_id}
+                  </p>
+                )}
+                {selectedNhaCungCap?.email && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">Email:</span> {selectedNhaCungCap.email}
+                  </p>
+                )}
+              </div>
+              {selectedNhaCungCap?.so_luong_sach !== undefined && selectedNhaCungCap.so_luong_sach > 0 ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                        ❌ Không thể xóa:
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                        Nhà cung cấp này đang có {selectedNhaCungCap.so_luong_sach} sách. Vui lòng xóa hoặc chuyển tất cả sách sang nhà cung cấp khác trước khi xóa nhà cung cấp này.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                        ⚠️ Cảnh báo:
+                      </p>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                        <li>Hành động này không thể hoàn tác</li>
+                        <li>Nhà cung cấp sẽ bị xóa vĩnh viễn</li>
+                      </ul>
+                    </div>
+                  )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading || (selectedNhaCungCap?.so_luong_sach !== undefined && selectedNhaCungCap.so_luong_sach > 0)}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

@@ -14,6 +14,7 @@ import {
 } from '../../services/thuongHieuService';
 import { Plus, Pencil, Trash2, Eye, Search, Loader2, ArrowLeft, Home, Tag, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { Badge } from '../../components/ui/badge';
 
 const AdminQuanLyThuongHieu = () => {
   const navigate = useNavigate();
@@ -118,6 +119,11 @@ const AdminQuanLyThuongHieu = () => {
   };
 
   const handleOpenDeleteDialog = (thuongHieu: ThuongHieu) => {
+    // Kiểm tra nếu thương hiệu có sách thì không cho xóa
+    if (thuongHieu.so_luong_sach !== undefined && thuongHieu.so_luong_sach > 0) {
+      toast.error(`Không thể xóa thương hiệu "${thuongHieu.ten_thuong_hieu}" vì đang có ${thuongHieu.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang thương hiệu khác trước.`);
+      return;
+    }
     setSelectedThuongHieu(thuongHieu);
     setIsDeleteDialogOpen(true);
   };
@@ -127,7 +133,7 @@ const AdminQuanLyThuongHieu = () => {
     
     // Validation
     if (!formData.ten_thuong_hieu.trim()) {
-      toast.error('Vui lòng nhập tên thương hiệu');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -165,6 +171,14 @@ const AdminQuanLyThuongHieu = () => {
   const handleDelete = async () => {
     if (!selectedThuongHieu) return;
 
+    // Kiểm tra lại số lượng sách trước khi xóa (double check)
+    if (selectedThuongHieu.so_luong_sach !== undefined && selectedThuongHieu.so_luong_sach > 0) {
+      toast.error(`Không thể xóa thương hiệu "${selectedThuongHieu.ten_thuong_hieu}" vì đang có ${selectedThuongHieu.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang thương hiệu khác trước.`);
+      setIsDeleteDialogOpen(false);
+      await loadData();
+      return;
+    }
+
     setFormLoading(true);
     try {
       await deleteThuongHieu(selectedThuongHieu.thuong_hieu_id);
@@ -180,6 +194,10 @@ const AdminQuanLyThuongHieu = () => {
         errorMessage = axiosError.response?.data?.message || 
                       axiosError.response?.data?.error || 
                       `Lỗi ${axiosError.response?.status || 500}`;
+        
+        if (axiosError.response?.status === 400 && errorMessage.includes('sách')) {
+          await loadData();
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -290,6 +308,7 @@ const AdminQuanLyThuongHieu = () => {
                   <tr className="border-b">
                     <th className="text-left p-3 font-semibold">ID</th>
                     <th className="text-left p-3 font-semibold">Tên thương hiệu</th>
+                    <th className="text-left p-3 font-semibold">Số lượng sách</th>
                     <th className="text-left p-3 font-semibold">Ngày tạo</th>
                     <th className="text-left p-3 font-semibold">Thao tác</th>
                   </tr>
@@ -299,6 +318,14 @@ const AdminQuanLyThuongHieu = () => {
                     <tr key={thuongHieu.thuong_hieu_id} className="border-b hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors">
                       <td className="p-3">{thuongHieu.thuong_hieu_id}</td>
                       <td className="p-3 font-medium">{thuongHieu.ten_thuong_hieu}</td>
+                      <td className="p-3">
+                        <Badge 
+                          variant={thuongHieu.so_luong_sach && thuongHieu.so_luong_sach > 0 ? "default" : "secondary"}
+                          className={thuongHieu.so_luong_sach && thuongHieu.so_luong_sach > 0 ? "bg-primary" : ""}
+                        >
+                          {thuongHieu.so_luong_sach ?? 0} sách
+                        </Badge>
+                      </td>
                       <td className="p-3 text-sm text-slate-600 dark:text-slate-400">
                         {formatDate(thuongHieu.ngay_tao)}
                       </td>
@@ -324,8 +351,17 @@ const AdminQuanLyThuongHieu = () => {
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => handleOpenDeleteDialog(thuongHieu)}
-                            title="Xóa"
-                            className="text-destructive hover:text-destructive"
+                            title={
+                              thuongHieu.so_luong_sach && thuongHieu.so_luong_sach > 0
+                                ? `Không thể xóa vì có ${thuongHieu.so_luong_sach} sách`
+                                : "Xóa"
+                            }
+                            disabled={thuongHieu.so_luong_sach !== undefined && thuongHieu.so_luong_sach > 0}
+                            className={`text-destructive hover:text-destructive ${
+                              thuongHieu.so_luong_sach && thuongHieu.so_luong_sach > 0
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -356,7 +392,6 @@ const AdminQuanLyThuongHieu = () => {
                 value={formData.ten_thuong_hieu}
                 onChange={(e) => setFormData({ ...formData, ten_thuong_hieu: e.target.value })}
                 placeholder="Ví dụ: Kim Đồng, Nhã Nam, Alpha Books..."
-                required
               />
             </div>
 
@@ -429,25 +464,72 @@ const AdminQuanLyThuongHieu = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa thương hiệu "{selectedThuongHieu?.ten_thuong_hieu}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa thương hiệu
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa thương hiệu này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên thương hiệu:</span> {selectedThuongHieu?.ten_thuong_hieu}
+                </p>
+                {selectedThuongHieu?.thuong_hieu_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedThuongHieu.thuong_hieu_id}
+                  </p>
+                )}
+              </div>
+              {selectedThuongHieu?.so_luong_sach !== undefined && selectedThuongHieu.so_luong_sach > 0 ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                        ❌ Không thể xóa:
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                        Thương hiệu này đang có {selectedThuongHieu.so_luong_sach} sách. Vui lòng xóa hoặc chuyển tất cả sách sang thương hiệu khác trước khi xóa thương hiệu này.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                        ⚠️ Cảnh báo:
+                      </p>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                        <li>Hành động này không thể hoàn tác</li>
+                        <li>Thương hiệu sẽ bị xóa vĩnh viễn</li>
+                      </ul>
+                    </div>
+                  )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading || (selectedThuongHieu?.so_luong_sach !== undefined && selectedThuongHieu.so_luong_sach > 0)}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

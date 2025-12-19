@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUserAuth } from '../../hooks/useUserAuth';
+import { registerKhachHang } from '../../services/khachHangService';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Lock, Mail, Loader2, User, Eye, EyeOff, UserPlus, Phone, Calendar } from 'lucide-react';
-import { toast } from 'sonner';
 
 const UserRegister = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +18,8 @@ const UserRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register, isAuthenticated } = useUserAuth();
+  const [error, setError] = useState<string>('');
+  const { isAuthenticated, updateUser } = useUserAuth();
   const navigate = useNavigate();
 
   // Nếu đã đăng nhập thì redirect về trang chủ
@@ -30,43 +31,59 @@ const UserRegister = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(''); // Xóa lỗi cũ
 
     // Validation
-    if (!email || !password || !hoTen) {
-      toast.error('Vui lòng nhập đầy đủ thông tin bắt buộc (Email, Mật khẩu, Họ tên)');
+    if (!email || !password || !hoTen || !confirmPassword) {
+      setError('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
     // Kiểm tra định dạng email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast.error('Email không hợp lệ');
+      setError('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     // Kiểm tra độ dài mật khẩu
     if (password.length < 6) {
-      toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      setError('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     // Kiểm tra mật khẩu khớp
     if (password !== confirmPassword) {
-      toast.error('Mật khẩu xác nhận không khớp');
+      setError('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     setLoading(true);
     try {
-      const success = await register(
+      // Gọi trực tiếp service để có thể bắt được error message cụ thể
+      const response = await registerKhachHang({
         email,
-        password,
-        hoTen,
-        soDienThoai || undefined,
-        ngaySinh || undefined
-      );
+        mat_khau: password,
+        ho_ten: hoTen,
+        so_dien_thoai: soDienThoai || undefined,
+        ngay_sinh: ngaySinh || undefined
+      });
 
-      if (success) {
+      if (response && response.success === true && response.token && response.khach_hang) {
+        // Lưu thông tin đăng nhập
+        localStorage.setItem('user_token', response.token);
+        localStorage.setItem('user_info', JSON.stringify(response.khach_hang));
+        
+        // Cập nhật context
+        updateUser(response.khach_hang);
+
+        // Xóa session cũ và gio_hang_id cũ để load lại giỏ hàng của user
+        localStorage.removeItem('gio_hang_id');
+        sessionStorage.removeItem('session_id');
+
+        // Dispatch event để CartContext load lại giỏ hàng của user
+        window.dispatchEvent(new Event('userLogin'));
+
         // Xóa dữ liệu trong form sau khi đăng ký thành công
         setEmail('');
         setPassword('');
@@ -80,11 +97,25 @@ const UserRegister = () => {
           navigate('/', { replace: true });
         }, 100);
       } else {
+        const errorMsg = response?.message || 'Dữ liệu không hợp lệ. Vui lòng nhập lại';
+        if (errorMsg.includes('Email đã được sử dụng') || errorMsg.includes('email đã được sử dụng')) {
+          setError('Email đã được đăng ký');
+        } else {
+          setError('Dữ liệu không hợp lệ. Vui lòng nhập lại');
+        }
         setLoading(false);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Register submit error:', error);
-      toast.error('Có lỗi xảy ra khi đăng ký');
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Dữ liệu không hợp lệ. Vui lòng nhập lại';
+      
+      // Kiểm tra nếu là lỗi email đã tồn tại
+      if (errorMessage.includes('Email đã được sử dụng') || errorMessage.includes('email đã được sử dụng')) {
+        setError('Email đã được đăng ký');
+      } else {
+        setError('Dữ liệu không hợp lệ. Vui lòng nhập lại');
+      }
       setLoading(false);
     }
   };
@@ -119,6 +150,13 @@ const UserRegister = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-md text-sm">
+                  {error}
+                </div>
+              )}
+
               {/* Họ tên Input */}
               <div className="space-y-2">
                 <label htmlFor="hoTen" className="text-sm font-medium flex items-center gap-2 text-slate-900 dark:text-slate-100">
@@ -133,9 +171,11 @@ const UserRegister = () => {
                     name="hoTen"
                     placeholder="Nhập họ và tên của bạn"
                     value={hoTen}
-                    onChange={(e) => setHoTen(e.target.value)}
+                    onChange={(e) => {
+                      setHoTen(e.target.value);
+                      setError(''); // Xóa lỗi khi người dùng nhập
+                    }}
                     className="pl-10 h-11"
-                    required
                     disabled={loading}
                     autoComplete="name"
                   />
@@ -156,9 +196,11 @@ const UserRegister = () => {
                     name="email"
                     placeholder="your.email@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError(''); // Xóa lỗi khi người dùng nhập
+                    }}
                     className="pl-10 h-11"
-                    required
                     disabled={loading}
                     autoComplete="email"
                   />
@@ -221,11 +263,12 @@ const UserRegister = () => {
                     name="password"
                     placeholder="Tối thiểu 6 ký tự"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError(''); // Xóa lỗi khi người dùng nhập
+                    }}
                     className="pl-10 pr-10 h-11"
-                    required
                     disabled={loading}
-                    minLength={6}
                     autoComplete="new-password"
                   />
                   <button
@@ -257,11 +300,12 @@ const UserRegister = () => {
                     name="confirmPassword"
                     placeholder="Nhập lại mật khẩu"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setError(''); // Xóa lỗi khi người dùng nhập
+                    }}
                     className="pl-10 pr-10 h-11"
-                    required
                     disabled={loading}
-                    minLength={6}
                     autoComplete="new-password"
                   />
                   <button
@@ -283,7 +327,7 @@ const UserRegister = () => {
               <Button
                 type="submit"
                 className="w-full h-11 text-base font-medium bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/20 hover:shadow-xl hover:shadow-green-500/30 transition-all mt-6"
-                disabled={loading || !email || !password || !hoTen || !confirmPassword}
+                disabled={loading}
                 size="lg"
               >
                 {loading ? (

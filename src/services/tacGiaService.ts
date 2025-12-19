@@ -7,6 +7,7 @@ export interface TacGia {
     tieu_su?: string;
     ngay_tao?: string;
     ngay_cap_nhat?: string;
+    so_luong_sach?: number;
 }
 
 export interface TacGiaListResponse {

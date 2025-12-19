@@ -36,13 +36,6 @@ const UserGioHang = () => {
     return `${apiBaseUrl}${url}`;
   };
 
-  // Tự động chọn tất cả sản phẩm khi giỏ hàng được load
-  useEffect(() => {
-    if (cartItems.length > 0 && selectedItems.size === 0) {
-      const allItemIds = new Set(cartItems.map(item => item.chi_tiet_gio_hang_id).filter(Boolean) as number[]);
-      setSelectedItems(allItemIds);
-    }
-  }, [cartItems.length, selectedItems.size, cartItems]);
 
   const selectedCartItems = cartItems.filter(item => 
     item.chi_tiet_gio_hang_id && selectedItems.has(item.chi_tiet_gio_hang_id)
@@ -391,7 +384,7 @@ const UserGioHang = () => {
                   </div>
                 )}
                 <Button
-                  className="w-full mt-6"
+                  className="w-full mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                   onClick={handleCheckout}
                   disabled={selectedItems.size === 0}

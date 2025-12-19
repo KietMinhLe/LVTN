@@ -19,25 +19,39 @@ apiClient.interceptors.request.use(
   (config) => { // Interceptor để thêm token vào header nếu có
     // Kiểm tra URL để quyết định dùng token nào
     const url = config.url || '';
+    const adminToken = localStorage.getItem('admin_token');
+    const userToken = localStorage.getItem('user_token');
+    
+    // Kiểm tra xem có phải API admin gọi API khachhang không
+    const isAdminKhachHangApi = adminToken && (
+      url.includes('/toggle-status') || 
+      (url.startsWith('/khachhang/') && url.match(/\/khachhang\/\d+$/)) ||
+      url === '/khachhang' ||
+      url.startsWith('/khachhang?') ||
+      url.startsWith('/khachhang/search') ||
+      url.startsWith('/khachhang/sort')
+    );
     
     // Nếu là API admin, dùng admin_token
     if (url.startsWith('/admin')) {
-      const adminToken = localStorage.getItem('admin_token');
       if (adminToken) {
         config.headers.Authorization = `Bearer ${adminToken}`;
       }
     } 
-    // Nếu là API khachhang, dùng user_token
+    // Nếu là API khachhang nhưng admin đang gọi (có admin_token và là API quản lý)
+    else if (isAdminKhachHangApi) {
+      if (adminToken) {
+        config.headers.Authorization = `Bearer ${adminToken}`;
+      }
+    }
+    // Nếu là API khachhang thông thường (user gọi), dùng user_token
     else if (url.startsWith('/khachhang')) {
-      const userToken = localStorage.getItem('user_token');
       if (userToken) {
         config.headers.Authorization = `Bearer ${userToken}`;
       }
     }
     // Với các API khác, ưu tiên admin_token, nếu không có thì dùng user_token
     else {
-      const adminToken = localStorage.getItem('admin_token');
-      const userToken = localStorage.getItem('user_token');
       if (adminToken) {
         config.headers.Authorization = `Bearer ${adminToken}`;
       } else if (userToken) {
@@ -85,19 +99,45 @@ apiClient.interceptors.response.use(
       });
     }
 
-    // Kiểm tra nếu status là 401
-    if (error.response?.status === 401) {
+    // Kiểm tra nếu status là 403 (Tài khoản bị khóa)
+    if (error.response?.status === 403 && error.response?.data?.code === 'ACCOUNT_LOCKED') {
       const url = error.config?.url || '';
       
-      // Nếu là API admin và không phải đang login
-      if (url.startsWith('/admin') && url !== '/admin/login') {
-        localStorage.removeItem('admin_token'); // Xóa token từ localStorage
-        localStorage.removeItem('admin_info'); // Xóa admin từ localStorage
-        if (window.location.pathname !== '/admin/login') {
-          window.location.href = '/admin/login'; // Redirect về trang login admin
+      // Nếu là API khachhang, chỉ hiển thị thông báo, không đăng xuất
+      if (url.startsWith('/khachhang') && url !== '/khachhang/login' && url !== '/khachhang/register') {
+        // Không đăng xuất, chỉ để component xử lý lỗi
+        // Component sẽ hiển thị thông báo và ngăn chặn các hành động tiếp theo
+        console.warn('Tài khoản đã bị khóa:', error.response.data.message);
+        // Không redirect, không xóa token - để user vẫn ở trang hiện tại
+      }
+    }
+    // Kiểm tra nếu status là 401 (Token không hợp lệ hoặc hết hạn)
+    else if (error.response?.status === 401) {
+      const url = error.config?.url || '';
+      const adminToken = localStorage.getItem('admin_token');
+      
+      // Kiểm tra xem có phải admin đang gọi API khachhang không
+      const isAdminKhachHangApi = adminToken && (
+        url.includes('/toggle-status') || 
+        (url.startsWith('/khachhang/') && url.match(/\/khachhang\/\d+$/)) ||
+        url === '/khachhang' ||
+        url.startsWith('/khachhang?') ||
+        url.startsWith('/khachhang/search') ||
+        url.startsWith('/khachhang/sort')
+      );
+      
+      // Nếu là API admin hoặc admin đang gọi API khachhang
+      if (url.startsWith('/admin') || isAdminKhachHangApi) {
+        if (url !== '/admin/login') {
+          localStorage.removeItem('admin_token'); // Xóa token từ localStorage
+          localStorage.removeItem('admin_info'); // Xóa admin từ localStorage
+          if (window.location.pathname !== '/admin/login' && !window.location.pathname.startsWith('/admin/')) {
+            // Chỉ redirect nếu không đang ở trang admin
+            window.location.href = '/admin/login'; // Redirect về trang login admin
+          }
         }
       }
-      // Nếu là API khachhang và không phải đang login/register
+      // Nếu là API khachhang thông thường (user gọi) và không phải đang login/register
       else if (url.startsWith('/khachhang') && url !== '/khachhang/login' && url !== '/khachhang/register') {
         localStorage.removeItem('user_token'); // Xóa token từ localStorage
         localStorage.removeItem('user_info'); // Xóa user từ localStorage

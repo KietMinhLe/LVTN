@@ -349,63 +349,63 @@ const AdminQuanLySach = () => {
     
     // Validation - Thông tin cơ bản
     if (!formData.ten_sach || !formData.ten_sach.trim()) {
-      toast.error('Vui lòng nhập tên sách');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.ma_sach || !formData.ma_sach.trim()) {
-      toast.error('Vui lòng nhập mã sách');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.gia_bia || formData.gia_bia <= 0) {
-      toast.error('Vui lòng nhập giá bìa hợp lệ (lớn hơn 0)');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.gia_ban || formData.gia_ban <= 0) {
-      toast.error('Vui lòng nhập giá bán hợp lệ (lớn hơn 0)');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.trong_luong || formData.trong_luong <= 0) {
-      toast.error('Vui lòng nhập trọng lượng hợp lệ (lớn hơn 0)');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     // Validation - Thông tin tham chiếu
     if (!formData.tac_gia_id || formData.tac_gia_id === 0) {
-      toast.error('Vui lòng chọn tác giả');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.nha_xuat_ban_id || formData.nha_xuat_ban_id === 0) {
-      toast.error('Vui lòng chọn nhà xuất bản');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.thuong_hieu_id || formData.thuong_hieu_id === 0) {
-      toast.error('Vui lòng chọn thương hiệu');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.nha_cung_cap_id || formData.nha_cung_cap_id === 0) {
-      toast.error('Vui lòng chọn nhà cung cấp');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.ngon_ngu_id || formData.ngon_ngu_id === 0) {
-      toast.error('Vui lòng chọn ngôn ngữ');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.do_tuoi_id || formData.do_tuoi_id === 0) {
-      toast.error('Vui lòng chọn độ tuổi');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.nguoi_bien_dich_id || formData.nguoi_bien_dich_id === 0) {
-      toast.error('Vui lòng chọn người biên dịch');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -492,15 +492,27 @@ const AdminQuanLySach = () => {
     } catch (error: unknown) {
       console.error('Error deleting sach:', error);
       let errorMessage = 'Lỗi không xác định';
+      
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string; error?: string }; status?: number } };
+        const axiosError = error as { 
+          response?: { 
+            data?: { 
+              message?: string; 
+              error?: string;
+            }; 
+            status?: number 
+          } 
+        };
+        
         errorMessage = axiosError.response?.data?.message || 
                       axiosError.response?.data?.error || 
                       `Lỗi ${axiosError.response?.status || 500}`;
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      toast.error('Lỗi: ' + errorMessage);
+      
+      // Hiển thị thông báo lỗi
+      toast.error(errorMessage, { duration: 5000 });
     } finally {
       setFormLoading(false);
     }
@@ -778,7 +790,6 @@ const AdminQuanLySach = () => {
                     value={formData.ten_sach}
                     onChange={(e) => setFormData({ ...formData, ten_sach: e.target.value })}
                     placeholder="Nhập tên sách..."
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -787,7 +798,6 @@ const AdminQuanLySach = () => {
                     value={formData.ma_sach}
                     onChange={(e) => setFormData({ ...formData, ma_sach: e.target.value })}
                     placeholder="Ví dụ: SACH-001"
-                    required
                   />
                 </div>
               </div>
@@ -819,7 +829,6 @@ const AdminQuanLySach = () => {
                     value={formData.gia_bia}
                     onChange={(e) => setFormData({ ...formData, gia_bia: Number(e.target.value) })}
                     placeholder="0"
-                    required
                     min={0}
                   />
                 </div>
@@ -830,7 +839,6 @@ const AdminQuanLySach = () => {
                     value={formData.gia_ban}
                     onChange={(e) => setFormData({ ...formData, gia_ban: Number(e.target.value) })}
                     placeholder="0"
-                    required
                     min={0}
                   />
                 </div>
@@ -844,7 +852,6 @@ const AdminQuanLySach = () => {
                     value={formData.so_luong || 0}
                     onChange={(e) => setFormData({ ...formData, so_luong: Number(e.target.value) })}
                     placeholder="0"
-                    required
                     min={0}
                   />
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -861,7 +868,6 @@ const AdminQuanLySach = () => {
                     value={formData.trong_luong}
                     onChange={(e) => setFormData({ ...formData, trong_luong: Number(e.target.value) })}
                     placeholder="0"
-                    required
                     min={0}
                   />
                 </div>
@@ -911,7 +917,6 @@ const AdminQuanLySach = () => {
                     value={formData.tac_gia_id}
                     onChange={(e) => setFormData({ ...formData, tac_gia_id: Number(e.target.value) })}
                     className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    required
                   >
                     <option value={0}>Chọn tác giả</option>
                     {tacGiaList.map((tg) => (
@@ -927,7 +932,6 @@ const AdminQuanLySach = () => {
                     value={formData.nha_xuat_ban_id}
                     onChange={(e) => setFormData({ ...formData, nha_xuat_ban_id: Number(e.target.value) })}
                     className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    required
                   >
                     <option value={0}>Chọn nhà xuất bản</option>
                     {nhaXuatBanList.map((nxb) => (
@@ -946,7 +950,6 @@ const AdminQuanLySach = () => {
                     value={formData.thuong_hieu_id}
                     onChange={(e) => setFormData({ ...formData, thuong_hieu_id: Number(e.target.value) })}
                     className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    required
                   >
                     <option value={0}>Chọn thương hiệu</option>
                     {thuongHieuList.map((th) => (
@@ -962,7 +965,6 @@ const AdminQuanLySach = () => {
                     value={formData.nha_cung_cap_id}
                     onChange={(e) => setFormData({ ...formData, nha_cung_cap_id: Number(e.target.value) })}
                     className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    required
                   >
                     <option value={0}>Chọn nhà cung cấp</option>
                     {nhaCungCapList.map((ncc) => (
@@ -981,7 +983,6 @@ const AdminQuanLySach = () => {
                     value={formData.ngon_ngu_id}
                     onChange={(e) => setFormData({ ...formData, ngon_ngu_id: Number(e.target.value) })}
                     className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    required
                   >
                     <option value={0}>Chọn ngôn ngữ</option>
                     {ngonNguList.map((nn) => (
@@ -997,7 +998,6 @@ const AdminQuanLySach = () => {
                     value={formData.do_tuoi_id}
                     onChange={(e) => setFormData({ ...formData, do_tuoi_id: Number(e.target.value) })}
                     className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    required
                   >
                     <option value={0}>Chọn độ tuổi</option>
                     {doTuoiList.map((dt) => (
@@ -1015,7 +1015,6 @@ const AdminQuanLySach = () => {
                       setFormData({ ...formData, nguoi_bien_dich_id: Number(e.target.value) });
                     }}
                     className="w-full h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                    required
                   >
                     <option value={0}>Chọn người biên dịch</option>
                     {nguoiBienDichList.map((nbd) => (
@@ -1445,25 +1444,62 @@ const AdminQuanLySach = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa sách "{selectedSach?.ten_sach}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa sách
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa sách này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên sách:</span> {selectedSach?.ten_sach}
+                </p>
+                {selectedSach?.ma_sach && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">Mã sách:</span> {selectedSach.ma_sach}
+                  </p>
+                )}
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  ⚠️ Cảnh báo:
+                </p>
+                <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                  <li>Hành động này không thể hoàn tác</li>
+                  <li>Tất cả dữ liệu liên quan sẽ bị xóa</li>
+                  <li>Nếu sách đang có trong đơn hàng, việc xóa có thể gặp lỗi và không thể thực hiện</li>
+                </ul>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

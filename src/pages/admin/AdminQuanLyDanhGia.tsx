@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Card, CardContent } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import {
   getAllDanhGia,
@@ -11,7 +11,7 @@ import {
   type DanhGia
 } from '../../services/danhGiaService';
 import { getAllSach, type Sach } from '../../services/sachService';
-import { Star, Trash2, Eye, Search, Loader2, ArrowLeft, Home, MessageSquare, User, BookOpen, Calendar, Filter, X } from 'lucide-react';
+import { Star, Trash2, Eye, Search, Loader2, ArrowLeft, Home, MessageSquare, User, BookOpen, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminQuanLyDanhGia = () => {
@@ -19,6 +19,7 @@ const AdminQuanLyDanhGia = () => {
   const [danhGiaList, setDanhGiaList] = useState<DanhGia[]>([]);
   const [filteredList, setFilteredList] = useState<DanhGia[]>([]);
   const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -37,7 +38,12 @@ const AdminQuanLyDanhGia = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {
+      const params: {
+        page: number;
+        limit: number;
+        sach_id?: number;
+        search?: string;
+      } = {
         page: currentPage,
         limit: itemsPerPage
       };
@@ -100,6 +106,7 @@ const AdminQuanLyDanhGia = () => {
   const handleDelete = async () => {
     if (!selectedDanhGia) return;
 
+    setFormLoading(true);
     try {
       await deleteDanhGiaByAdmin(selectedDanhGia.danh_gia_id);
       toast.success('Xóa đánh giá thành công');
@@ -112,6 +119,8 @@ const AdminQuanLyDanhGia = () => {
         ? error.message 
         : (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Lỗi không xác định';
       toast.error('Lỗi: ' + errorMessage);
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -327,13 +336,16 @@ const AdminQuanLyDanhGia = () => {
                               <span className="text-sm text-gray-700 font-medium">
                                 {danhGia.sach.ten_sach}
                               </span>
-                              {danhGia.sach.anh_bia_url && (
-                                <img
-                                  src={getImageUrl(danhGia.sach.anh_bia_url)}
-                                  alt={danhGia.sach.ten_sach}
-                                  className="w-8 h-10 object-cover rounded border"
-                                />
-                              )}
+                              {(() => {
+                                const sachInfo = sachList.find(s => s.sach_id === danhGia.sach?.sach_id);
+                                return sachInfo?.anh_bia_url && (
+                                  <img
+                                    src={getImageUrl(sachInfo.anh_bia_url)}
+                                    alt={danhGia.sach.ten_sach}
+                                    className="w-8 h-10 object-cover rounded border"
+                                  />
+                                );
+                              })()}
                             </div>
                           )}
                           {danhGia.binh_luan && (
@@ -437,13 +449,16 @@ const AdminQuanLyDanhGia = () => {
                       Sản phẩm được đánh giá
                     </h4>
                     <div className="flex items-center gap-3">
-                      {selectedDanhGia.sach.anh_bia_url && (
-                        <img
-                          src={getImageUrl(selectedDanhGia.sach.anh_bia_url)}
-                          alt={selectedDanhGia.sach.ten_sach}
-                          className="w-16 h-20 object-cover rounded border"
-                        />
-                      )}
+                      {(() => {
+                        const sachInfo = sachList.find(s => s.sach_id === selectedDanhGia.sach?.sach_id);
+                        return sachInfo?.anh_bia_url && (
+                          <img
+                            src={getImageUrl(sachInfo.anh_bia_url)}
+                            alt={selectedDanhGia.sach.ten_sach}
+                            className="w-16 h-20 object-cover rounded border"
+                          />
+                        );
+                      })()}
                       <div>
                         <p className="font-medium">{selectedDanhGia.sach.ten_sach}</p>
                         <p className="text-sm text-gray-600">ID: {selectedDanhGia.sach.sach_id}</p>
@@ -480,46 +495,77 @@ const AdminQuanLyDanhGia = () => {
 
         {/* Delete Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Xác nhận xóa đánh giá</DialogTitle>
-              <DialogDescription>
-                Bạn có chắc chắn muốn xóa đánh giá này? Hành động này không thể hoàn tác.
+              <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+                <Trash2 className="h-5 w-5" />
+                Xác nhận xóa đánh giá
+              </DialogTitle>
+              <DialogDescription className="pt-4 space-y-3">
+                {selectedDanhGia && (
+                  <>
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                      <p className="text-base font-semibold text-destructive mb-2">
+                        Bạn có chắc chắn muốn xóa đánh giá này không?
+                      </p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                        <span className="font-medium">Khách hàng:</span> {selectedDanhGia.khachhang?.ho_ten || 'N/A'}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Đánh giá:</span>
+                        {renderStars(selectedDanhGia.xep_hang)}
+                      </div>
+                      {selectedDanhGia.binh_luan && (
+                        <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">
+                          <span className="font-medium">Bình luận:</span> {selectedDanhGia.binh_luan}
+                        </p>
+                      )}
+                      {selectedDanhGia.danh_gia_id && (
+                        <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                          <span className="font-medium">ID:</span> {selectedDanhGia.danh_gia_id}
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                        ⚠️ Cảnh báo:
+                      </p>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                        <li>Hành động này không thể hoàn tác</li>
+                        <li>Đánh giá sẽ bị xóa vĩnh viễn</li>
+                      </ul>
+                    </div>
+                  </>
+                )}
               </DialogDescription>
             </DialogHeader>
-            {selectedDanhGia && (
-              <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="font-medium mb-2">
-                    {selectedDanhGia.khachhang?.ho_ten || 'Khách hàng'}
-                  </p>
-                  <div className="flex items-center gap-2 mb-2">
-                    {renderStars(selectedDanhGia.xep_hang)}
-                  </div>
-                  {selectedDanhGia.binh_luan && (
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {selectedDanhGia.binh_luan}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    variant="destructive"
-                    onClick={handleDelete}
-                    className="flex-1"
-                  >
-                    Xóa
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsDeleteDialogOpen(false)}
-                    className="flex-1"
-                  >
-                    Hủy
-                  </Button>
-                </div>
-              </div>
-            )}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={formLoading}
+              >
+                Hủy
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete} 
+                disabled={formLoading}
+                className="gap-2"
+              >
+                {formLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang xóa...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Xác nhận xóa
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

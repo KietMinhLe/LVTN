@@ -137,7 +137,7 @@ const AdminQuanLyPhuongThucGiaoHang = () => {
     
     // Validation
     if (!formData.ten_phuong_thuc.trim()) {
-      toast.error('Vui lòng nhập tên phương thức giao hàng');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -406,7 +406,6 @@ const AdminQuanLyPhuongThucGiaoHang = () => {
                 value={formData.ten_phuong_thuc}
                 onChange={(e) => setFormData({ ...formData, ten_phuong_thuc: e.target.value })}
                 placeholder="Ví dụ: Giao hàng nhanh, Giao hàng tiêu chuẩn..."
-                required
                 lang="vi"
                 autoComplete="off"
               />
@@ -576,25 +575,62 @@ const AdminQuanLyPhuongThucGiaoHang = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa phương thức giao hàng "{selectedPhuongThuc?.ten_phuong_thuc}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa phương thức giao hàng
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa phương thức giao hàng này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên phương thức:</span> {selectedPhuongThuc?.ten_phuong_thuc}
+                </p>
+                {selectedPhuongThuc?.phuong_thuc_van_chuyen_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedPhuongThuc.phuong_thuc_van_chuyen_id}
+                  </p>
+                )}
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  ⚠️ Cảnh báo:
+                </p>
+                <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                  <li>Hành động này không thể hoàn tác</li>
+                  <li>Tất cả dữ liệu liên quan sẽ bị xóa</li>
+                  <li>Nếu phương thức đang có đơn hàng, việc xóa có thể gặp lỗi</li>
+                </ul>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

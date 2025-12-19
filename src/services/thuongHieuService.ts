@@ -6,6 +6,7 @@ export interface ThuongHieu {
     ten_thuong_hieu: string;
     ngay_tao?: string;
     ngay_cap_nhat?: string;
+    so_luong_sach?: number;
 }
 
 export interface ThuongHieuListResponse {

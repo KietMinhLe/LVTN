@@ -131,12 +131,12 @@ const AdminQuanLyNgonNgu = () => {
     
     // Validation
     if (!formData.ten_ngon_ngu.trim()) {
-      toast.error('Vui lòng nhập tên ngôn ngữ');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.ma_ngon_ngu || !formData.ma_ngon_ngu.trim()) {
-      toast.error('Vui lòng nhập mã ngôn ngữ');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -376,7 +376,6 @@ const AdminQuanLyNgonNgu = () => {
                 value={formData.ten_ngon_ngu}
                 onChange={(e) => setFormData({ ...formData, ten_ngon_ngu: e.target.value })}
                 placeholder="Ví dụ: Tiếng Việt, English, 日本語..."
-                required
                 lang="vi"
                 autoComplete="off"
               />
@@ -388,7 +387,6 @@ const AdminQuanLyNgonNgu = () => {
                 value={formData.ma_ngon_ngu}
                 onChange={(e) => setFormData({ ...formData, ma_ngon_ngu: e.target.value })}
                 placeholder="Ví dụ: vi, en, ja..."
-                required
                 lang="vi"
                 autoComplete="off"
               />
@@ -473,25 +471,67 @@ const AdminQuanLyNgonNgu = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa ngôn ngữ "{selectedNgonNgu?.ten_ngon_ngu}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa ngôn ngữ
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa ngôn ngữ này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên ngôn ngữ:</span> {selectedNgonNgu?.ten_ngon_ngu}
+                </p>
+                {selectedNgonNgu?.ngon_ngu_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedNgonNgu.ngon_ngu_id}
+                  </p>
+                )}
+                {selectedNgonNgu?.ma_ngon_ngu && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">Mã ngôn ngữ:</span> {selectedNgonNgu.ma_ngon_ngu}
+                  </p>
+                )}
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  ⚠️ Cảnh báo:
+                </p>
+                <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                  <li>Hành động này không thể hoàn tác</li>
+                  <li>Tất cả dữ liệu liên quan sẽ bị xóa</li>
+                  <li>Nếu ngôn ngữ đang có sách, việc xóa có thể gặp lỗi</li>
+                </ul>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

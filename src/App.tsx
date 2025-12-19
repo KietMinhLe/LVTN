@@ -7,6 +7,8 @@ import UserDanhMuc from './pages/user/UserDanhMuc';
 import UserKhongTimThay from './pages/user/UserKhongTimThay';
 import UserLogin from './pages/user/UserLogin';
 import UserRegister from './pages/user/UserRegister';
+import UserForgotPassword from './pages/user/UserForgotPassword';
+import UserResetPassword from './pages/user/UserResetPassword';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminQuanLySach from './pages/admin/AdminQuanLySach';
@@ -86,6 +88,8 @@ function App() {
             {/* User Authentication Routes */}
             <Route path="/login" element={<UserLogin />} />
             <Route path="/register" element={<UserRegister />} />
+            <Route path="/forgot-password" element={<UserForgotPassword />} />
+            <Route path="/reset-password" element={<UserResetPassword />} />
             
             {/* User Routes with Layout */} 
             <Route

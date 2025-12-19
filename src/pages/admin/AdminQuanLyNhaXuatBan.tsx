@@ -14,6 +14,7 @@ import {
 } from '../../services/nhaXuatBanService';
 import { Plus, Pencil, Trash2, Eye, Search, Loader2, ArrowLeft, Home, Building2, ArrowUpDown, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { Badge } from '../../components/ui/badge';
 
 const AdminQuanLyNhaXuatBan = () => {
   const navigate = useNavigate();
@@ -122,6 +123,11 @@ const AdminQuanLyNhaXuatBan = () => {
   };
 
   const handleOpenDeleteDialog = (nhaXuatBan: NhaXuatBan) => {
+    // Kiểm tra nếu nhà xuất bản có sách thì không cho xóa
+    if (nhaXuatBan.so_luong_sach !== undefined && nhaXuatBan.so_luong_sach > 0) {
+      toast.error(`Không thể xóa nhà xuất bản "${nhaXuatBan.ten_nha_xuat_ban}" vì đang có ${nhaXuatBan.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang nhà xuất bản khác trước.`);
+      return;
+    }
     setSelectedNhaXuatBan(nhaXuatBan);
     setIsDeleteDialogOpen(true);
   };
@@ -131,19 +137,19 @@ const AdminQuanLyNhaXuatBan = () => {
     
     // Validation
     if (!formData.ten_nha_xuat_ban.trim()) {
-      toast.error('Vui lòng nhập tên nhà xuất bản');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.email.trim()) {
-      toast.error('Vui lòng nhập email');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
-      toast.error('Email không hợp lệ');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -181,6 +187,14 @@ const AdminQuanLyNhaXuatBan = () => {
   const handleDelete = async () => {
     if (!selectedNhaXuatBan) return;
 
+    // Kiểm tra lại số lượng sách trước khi xóa (double check)
+    if (selectedNhaXuatBan.so_luong_sach !== undefined && selectedNhaXuatBan.so_luong_sach > 0) {
+      toast.error(`Không thể xóa nhà xuất bản "${selectedNhaXuatBan.ten_nha_xuat_ban}" vì đang có ${selectedNhaXuatBan.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang nhà xuất bản khác trước.`);
+      setIsDeleteDialogOpen(false);
+      await loadData();
+      return;
+    }
+
     setFormLoading(true);
     try {
       await deleteNhaXuatBan(selectedNhaXuatBan.nha_xuat_ban_id);
@@ -196,6 +210,10 @@ const AdminQuanLyNhaXuatBan = () => {
         errorMessage = axiosError.response?.data?.message || 
                       axiosError.response?.data?.error || 
                       `Lỗi ${axiosError.response?.status || 500}`;
+        
+        if (axiosError.response?.status === 400 && errorMessage.includes('sách')) {
+          await loadData();
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -308,6 +326,7 @@ const AdminQuanLyNhaXuatBan = () => {
                     <th className="text-left p-3 font-semibold">ID</th>
                     <th className="text-left p-3 font-semibold">Tên nhà xuất bản</th>
                     <th className="text-left p-3 font-semibold">Email</th>
+                    <th className="text-left p-3 font-semibold">Số lượng sách</th>
                     <th className="text-left p-3 font-semibold">Ngày tạo</th>
                     <th className="text-left p-3 font-semibold">Thao tác</th>
                   </tr>
@@ -328,6 +347,14 @@ const AdminQuanLyNhaXuatBan = () => {
                             <span className="text-slate-500 dark:text-slate-400">N/A</span>
                           )}
                         </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge 
+                          variant={nhaXuatBan.so_luong_sach && nhaXuatBan.so_luong_sach > 0 ? "default" : "secondary"}
+                          className={nhaXuatBan.so_luong_sach && nhaXuatBan.so_luong_sach > 0 ? "bg-primary" : ""}
+                        >
+                          {nhaXuatBan.so_luong_sach ?? 0} sách
+                        </Badge>
                       </td>
                       <td className="p-3 text-sm text-slate-600 dark:text-slate-400">
                         {formatDate(nhaXuatBan.ngay_tao)}
@@ -354,8 +381,17 @@ const AdminQuanLyNhaXuatBan = () => {
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => handleOpenDeleteDialog(nhaXuatBan)}
-                            title="Xóa"
-                            className="text-destructive hover:text-destructive"
+                            title={
+                              nhaXuatBan.so_luong_sach && nhaXuatBan.so_luong_sach > 0
+                                ? `Không thể xóa vì có ${nhaXuatBan.so_luong_sach} sách`
+                                : "Xóa"
+                            }
+                            disabled={nhaXuatBan.so_luong_sach !== undefined && nhaXuatBan.so_luong_sach > 0}
+                            className={`text-destructive hover:text-destructive ${
+                              nhaXuatBan.so_luong_sach && nhaXuatBan.so_luong_sach > 0
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -386,7 +422,6 @@ const AdminQuanLyNhaXuatBan = () => {
                 value={formData.ten_nha_xuat_ban}
                 onChange={(e) => setFormData({ ...formData, ten_nha_xuat_ban: e.target.value })}
                 placeholder="Ví dụ: Nhà xuất bản Trẻ, Nhà xuất bản Kim Đồng..."
-                required
               />
             </div>
 
@@ -397,7 +432,6 @@ const AdminQuanLyNhaXuatBan = () => {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="Ví dụ: contact@nxb.com"
-                required
               />
             </div>
 
@@ -479,25 +513,72 @@ const AdminQuanLyNhaXuatBan = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa nhà xuất bản "{selectedNhaXuatBan?.ten_nha_xuat_ban}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa nhà xuất bản
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa nhà xuất bản này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên nhà xuất bản:</span> {selectedNhaXuatBan?.ten_nha_xuat_ban}
+                </p>
+                {selectedNhaXuatBan?.nha_xuat_ban_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedNhaXuatBan.nha_xuat_ban_id}
+                  </p>
+                )}
+              </div>
+              {selectedNhaXuatBan?.so_luong_sach !== undefined && selectedNhaXuatBan.so_luong_sach > 0 ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                        ❌ Không thể xóa:
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                        Nhà xuất bản này đang có {selectedNhaXuatBan.so_luong_sach} sách. Vui lòng xóa hoặc chuyển tất cả sách sang nhà xuất bản khác trước khi xóa nhà xuất bản này.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                        ⚠️ Cảnh báo:
+                      </p>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                        <li>Hành động này không thể hoàn tác</li>
+                        <li>Nhà xuất bản sẽ bị xóa vĩnh viễn</li>
+                      </ul>
+                    </div>
+                  )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading || (selectedNhaXuatBan?.so_luong_sach !== undefined && selectedNhaXuatBan.so_luong_sach > 0)}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

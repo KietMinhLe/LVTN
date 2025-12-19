@@ -27,7 +27,7 @@ const AdminLoginPage = () => {
     e.preventDefault();
     
     if (!email || !password) {
-      toast.error('Vui lòng nhập đầy đủ email và mật khẩu');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -109,7 +109,6 @@ const AdminLoginPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-11 h-12 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-200 bg-slate-50 dark:bg-slate-800/50"
-                    required
                     disabled={loading}
                     autoComplete="off"
                     autoSave="off"
@@ -134,7 +133,6 @@ const AdminLoginPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-11 pr-11 h-12 border-2 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-200 bg-slate-50 dark:bg-slate-800/50"
-                    required
                     disabled={loading}
                     minLength={6}
                     autoComplete="new-password"

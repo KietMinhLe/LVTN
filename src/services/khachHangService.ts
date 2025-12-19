@@ -220,3 +220,45 @@ export const updateMyProfile = async (data: UpdateMyProfileRequest): Promise<Kha
   }
 };
 
+// ==================== FORGOT PASSWORD ====================
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+  success: boolean;
+}
+
+export const forgotPassword = async (data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> => {
+  try {
+    const response = await apiClient.post<ForgotPasswordResponse>('/khachhang/forgot-password', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in forgotPassword service:', error);
+    throw error;
+  }
+};
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+  success: boolean;
+}
+
+export const resetPassword = async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
+  try {
+    const response = await apiClient.post<ResetPasswordResponse>('/khachhang/reset-password', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in resetPassword service:', error);
+    throw error;
+  }
+};
+

@@ -1925,9 +1925,9 @@ const UserThanhToan = () => {
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 text-lg font-bold py-6 mt-5 hover:scale-[1.02] active:scale-[0.98] rounded-xl"
+                    className="w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 text-lg font-bold py-6 mt-5 hover:scale-[1.02] active:scale-[0.98] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     size="lg"
-                    disabled={submitting}
+                    disabled={submitting || selectedCartItems.length === 0}
                   >
                     {submitting ? (
                       <>

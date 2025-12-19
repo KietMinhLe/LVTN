@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -9,13 +9,13 @@ import {
   getAllKhachHang,
   getKhachHangById,
   searchKhachHang,
-  updateKhachHang,
+  // updateKhachHang, // Đã ẩn chức năng sửa ở giao diện nhưng giữ lại để backend vẫn hoạt động
   toggleKhachHangStatus,
   deleteKhachHang,
   type KhachHang,
-  type UpdateKhachHangRequest,
+  // type UpdateKhachHangRequest, // Đã ẩn chức năng sửa ở giao diện nhưng giữ lại để backend vẫn hoạt động
 } from '../../services/khachHangService';
-import { Pencil, Trash2, Eye, Search, Loader2, ArrowLeft, Home, Users, Lock, Unlock, RefreshCw, ArrowUpDown, CheckCircle2, XCircle } from 'lucide-react';
+import { Trash2, Eye, Search, Loader2, ArrowLeft, Home, Users, Lock, Unlock, RefreshCw, ArrowUpDown, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminQuanLyKhachHang = () => {
@@ -24,7 +24,7 @@ const AdminQuanLyKhachHang = () => {
   const [filteredKhachHangList, setFilteredKhachHangList] = useState<KhachHang[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // const [isDialogOpen, setIsDialogOpen] = useState(false); // Đã ẩn chức năng sửa ở giao diện
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isToggleStatusDialogOpen, setIsToggleStatusDialogOpen] = useState(false);
@@ -40,12 +40,12 @@ const AdminQuanLyKhachHang = () => {
   const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10;
 
-  // Form state
-  const [formData, setFormData] = useState<UpdateKhachHangRequest>({
-    ho_ten: '',
-    so_dien_thoai: '',
-    ngay_sinh: '',
-  });
+  // Form state - Đã ẩn chức năng sửa ở giao diện nhưng giữ lại để backend vẫn hoạt động
+  // const [formData, setFormData] = useState<UpdateKhachHangRequest>({
+  //   ho_ten: '',
+  //   so_dien_thoai: '',
+  //   ngay_sinh: '',
+  // });
   const [formLoading, setFormLoading] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -146,15 +146,16 @@ const AdminQuanLyKhachHang = () => {
     }
   };
 
-  const handleOpenEditDialog = (khachHang: KhachHang) => {
-    setSelectedKhachHang(khachHang);
-    setFormData({
-      ho_ten: khachHang.ho_ten,
-      so_dien_thoai: khachHang.so_dien_thoai || '',
-      ngay_sinh: khachHang.ngay_sinh ? new Date(khachHang.ngay_sinh).toISOString().split('T')[0] : '',
-    });
-    setIsDialogOpen(true);
-  };
+  // Đã ẩn chức năng sửa ở giao diện nhưng giữ lại để backend vẫn hoạt động
+  // const handleOpenEditDialog = (khachHang: KhachHang) => {
+  //   setSelectedKhachHang(khachHang);
+  //   setFormData({
+  //     ho_ten: khachHang.ho_ten,
+  //     so_dien_thoai: khachHang.so_dien_thoai || '',
+  //     ngay_sinh: khachHang.ngay_sinh ? new Date(khachHang.ngay_sinh).toISOString().split('T')[0] : '',
+  //   });
+  //   setIsDialogOpen(true);
+  // };
 
   const handleOpenViewDialog = async (khachHang: KhachHang) => {
     try {
@@ -180,34 +181,35 @@ const AdminQuanLyKhachHang = () => {
     setIsToggleStatusDialogOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedKhachHang) return;
+  // Đã ẩn chức năng sửa ở giao diện nhưng giữ lại để backend vẫn hoạt động
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   
+  //   if (!selectedKhachHang) return;
 
-    // Validation
-    if (!formData.ho_ten || formData.ho_ten.trim() === '') {
-      toast.error('Họ tên không được để trống');
-      return;
-    }
+  //   // Validation
+  //   if (!formData.ho_ten || formData.ho_ten.trim() === '') {
+  //     toast.error('Họ tên không được để trống');
+  //     return;
+  //   }
 
-    setFormLoading(true);
-    try {
-      await updateKhachHang(selectedKhachHang.khach_hang_id, formData);
-      toast.success('Cập nhật thông tin khách hàng thành công');
-      setIsDialogOpen(false);
-      await loadData();
-      setSelectedKhachHang(null);
-    } catch (error: unknown) {
-      console.error('Error updating khach hang:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Lỗi không xác định';
-      toast.error('Lỗi: ' + errorMessage);
-    } finally {
-      setFormLoading(false);
-    }
-  };
+  //   setFormLoading(true);
+  //   try {
+  //     await updateKhachHang(selectedKhachHang.khach_hang_id, formData);
+  //     toast.success('Cập nhật thông tin khách hàng thành công');
+  //     setIsDialogOpen(false);
+  //     await loadData();
+  //     setSelectedKhachHang(null);
+  //   } catch (error: unknown) {
+  //     console.error('Error updating khach hang:', error);
+  //     const errorMessage = error instanceof Error 
+  //       ? error.message 
+  //       : (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Lỗi không xác định';
+  //     toast.error('Lỗi: ' + errorMessage);
+  //   } finally {
+  //     setFormLoading(false);
+  //   }
+  // };
 
   const handleDelete = async () => {
     if (!selectedKhachHang) return;
@@ -435,14 +437,6 @@ const AdminQuanLyKhachHang = () => {
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              onClick={() => handleOpenEditDialog(khachHang)}
-                              title="Sửa"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
                               onClick={() => handleOpenToggleStatusDialog(khachHang)}
                               title={khachHang.trang_thai ? 'Khóa' : 'Mở khóa'}
                               className={khachHang.trang_thai ? 'text-orange-600 hover:text-orange-700' : 'text-green-600 hover:text-green-700'}
@@ -503,68 +497,6 @@ const AdminQuanLyKhachHang = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Sửa thông tin khách hàng</DialogTitle>
-            <DialogDescription>
-              Cập nhật thông tin khách hàng
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4" lang="vi">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900 dark:text-slate-100">Họ tên *</label>
-              <Input
-                value={formData.ho_ten}
-                onChange={(e) => setFormData({ ...formData, ho_ten: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900 dark:text-slate-100">Số điện thoại</label>
-              <Input
-                value={formData.so_dien_thoai}
-                onChange={(e) => setFormData({ ...formData, so_dien_thoai: e.target.value })}
-                placeholder="10-11 chữ số"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900 dark:text-slate-100">Ngày sinh</label>
-              <Input
-                type="date"
-                value={formData.ngay_sinh}
-                onChange={(e) => setFormData({ ...formData, ngay_sinh: e.target.value })}
-                max={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                disabled={formLoading}
-              >
-                Hủy
-              </Button>
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Đang lưu...
-                  </>
-                ) : (
-                  'Lưu thay đổi'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* View Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -712,17 +644,87 @@ const AdminQuanLyKhachHang = () => {
 
       {/* Toggle Status Dialog */}
       <Dialog open={isToggleStatusDialogOpen} onOpenChange={setIsToggleStatusDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {selectedKhachHang?.trang_thai ? 'Khóa khách hàng' : 'Mở khóa khách hàng'}
+            <DialogTitle className={`text-xl font-bold flex items-center gap-2 ${
+              selectedKhachHang?.trang_thai ? 'text-destructive' : 'text-green-600'
+            }`}>
+              {selectedKhachHang?.trang_thai ? (
+                <>
+                  <Lock className="h-5 w-5" />
+                  Xác nhận khóa tài khoản
+                </>
+              ) : (
+                <>
+                  <Unlock className="h-5 w-5" />
+                  Xác nhận mở khóa tài khoản
+                </>
+              )}
             </DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn {selectedKhachHang?.trang_thai ? 'khóa' : 'mở khóa'} tài khoản của{' '}
-              <strong>{selectedKhachHang?.ho_ten}</strong> không?
+            <DialogDescription className="pt-4 space-y-3">
+              {selectedKhachHang && (
+                <>
+                  <div className={`rounded-lg p-4 border ${
+                    selectedKhachHang.trang_thai 
+                      ? 'bg-destructive/10 border-destructive/20' 
+                      : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  }`}>
+                    <p className={`text-base font-semibold mb-2 ${
+                      selectedKhachHang.trang_thai ? 'text-destructive' : 'text-green-800 dark:text-green-200'
+                    }`}>
+                      Bạn có chắc chắn muốn {selectedKhachHang.trang_thai ? 'khóa' : 'mở khóa'} tài khoản này không?
+                    </p>
+                    <div className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                      <p>
+                        <span className="font-medium">Khách hàng:</span> {selectedKhachHang.ho_ten}
+                      </p>
+                      <p>
+                        <span className="font-medium">Email:</span> {selectedKhachHang.email}
+                      </p>
+                      {selectedKhachHang.khach_hang_id && (
+                        <p>
+                          <span className="font-medium">ID:</span> {selectedKhachHang.khach_hang_id}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`rounded-lg p-3 border ${
+                    selectedKhachHang.trang_thai 
+                      ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                      : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                  }`}>
+                    <p className={`text-sm font-medium mb-2 ${
+                      selectedKhachHang.trang_thai 
+                        ? 'text-yellow-800 dark:text-yellow-200' 
+                        : 'text-blue-800 dark:text-blue-200'
+                    }`}>
+                      {selectedKhachHang.trang_thai ? '⚠️ Cảnh báo:' : 'ℹ️ Thông tin:'}
+                    </p>
+                    <ul className={`text-sm space-y-1 list-disc list-inside ${
+                      selectedKhachHang.trang_thai 
+                        ? 'text-yellow-700 dark:text-yellow-300' 
+                        : 'text-blue-700 dark:text-blue-300'
+                    }`}>
+                      {selectedKhachHang.trang_thai ? (
+                        <>
+                          <li>Khách hàng sẽ không thể đăng nhập vào hệ thống</li>
+                          <li>Khách hàng sẽ không thể thực hiện các giao dịch</li>
+                          <li>Có thể mở khóa lại bất cứ lúc nào</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Khách hàng sẽ có thể đăng nhập vào hệ thống</li>
+                          <li>Khách hàng sẽ có thể thực hiện các giao dịch bình thường</li>
+                          <li>Tài khoản sẽ được kích hoạt lại</li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               onClick={() => setIsToggleStatusDialogOpen(false)}
@@ -734,14 +736,27 @@ const AdminQuanLyKhachHang = () => {
               variant={selectedKhachHang?.trang_thai ? 'destructive' : 'default'}
               onClick={handleToggleStatus}
               disabled={formLoading}
+              className="gap-2"
             >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xử lý...
                 </>
               ) : (
-                selectedKhachHang?.trang_thai ? 'Khóa' : 'Mở khóa'
+                <>
+                  {selectedKhachHang?.trang_thai ? (
+                    <>
+                      <Lock className="h-4 w-4" />
+                      Xác nhận khóa
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="h-4 w-4" />
+                      Xác nhận mở khóa
+                    </>
+                  )}
+                </>
               )}
             </Button>
           </DialogFooter>

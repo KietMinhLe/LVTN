@@ -9,11 +9,11 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => { // Layout là một component để hiển thị layout cho trang web
   return ( // return là một hàm để trả về JSX
     <div className="flex min-h-screen flex-col">
-      <Header /> // Header là một component để hiển thị header cho trang web
+      <Header />
       <main className="flex-1">
         {children}  {/* children là một prop để truyền vào component Layout */}
       </main>
-      <Footer /> // Footer là một component để hiển thị footer cho trang web
+      <Footer /> 
     </div>
   );
 }; // Layout là một component để hiển thị layout cho trang web

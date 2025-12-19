@@ -163,12 +163,12 @@ const AdminVourcher = () => {
     
     // Validation
     if (!formData.ma_voucher.trim()) {
-      toast.error('Vui lòng nhập mã voucher');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
     if (!formData.loai_giam_gia) {
-      toast.error('Vui lòng chọn loại giảm giá');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -513,7 +513,6 @@ const AdminVourcher = () => {
                   value={formData.ma_voucher}
                   onChange={(e) => setFormData({ ...formData, ma_voucher: e.target.value.toUpperCase() })}
                   placeholder="Ví dụ: SALE2024"
-                  required
                 />
               </div>
 
@@ -523,7 +522,6 @@ const AdminVourcher = () => {
                   value={formData.loai_giam_gia}
                   onChange={(e) => setFormData({ ...formData, loai_giam_gia: e.target.value })}
                   className="w-full h-10 px-3 rounded-md border border-input bg-transparent text-sm"
-                  required
                 >
                   <option value="tiền">Giảm theo tiền (VND)</option>
                   <option value="phần trăm">Giảm theo phần trăm (%)</option>
@@ -540,7 +538,6 @@ const AdminVourcher = () => {
                   min="0"
                   max={formData.loai_giam_gia === 'phần trăm' ? '100' : undefined}
                   step={formData.loai_giam_gia === 'phần trăm' ? '1' : '1000'}
-                  required
                 />
               </div>
 
@@ -740,25 +737,67 @@ const AdminVourcher = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa voucher "{selectedVoucher?.ma_voucher}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa voucher
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa voucher này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Mã voucher:</span> {selectedVoucher?.ma_voucher}
+                </p>
+                {selectedVoucher?.voucher_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedVoucher.voucher_id}
+                  </p>
+                )}
+                {selectedVoucher?.gia_tri_giam && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">Giá trị giảm:</span> {selectedVoucher.gia_tri_giam}
+                  </p>
+                )}
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  ⚠️ Cảnh báo:
+                </p>
+                <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                  <li>Hành động này không thể hoàn tác</li>
+                  <li>Tất cả dữ liệu liên quan sẽ bị xóa</li>
+                  <li>Nếu voucher đang có đơn hàng, việc xóa có thể gặp lỗi</li>
+                </ul>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

@@ -10,6 +10,7 @@ export interface NhaCungCap { // Interface cho nhà cung cấp
     sdt?: string;
     ngay_tao?: string;
     ngay_cap_nhat?: string;
+    so_luong_sach?: number;
 }
 
 export interface NhaCungCapListResponse { // Interface cho danh sách nhà cung cấp

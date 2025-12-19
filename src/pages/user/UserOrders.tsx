@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../hooks/useUserAuth';
-import { getAllDonHang, getDonHangById, deleteDonHang, type DonHang, type ChiTietDonHang } from '../../services/donHangService';
+import { getAllDonHang, getDonHangById, deleteDonHang, cancelDonHang, type DonHang, type ChiTietDonHang } from '../../services/donHangService';
 import { searchSach, type Sach } from '../../services/sachService';
 import { createChiTietGioHang } from '../../services/chiTietGioHangService';
 import { getOrCreateGioHang } from '../../services/gioHangService';
@@ -57,6 +57,7 @@ const UserOrders = () => {
   const [existingDanhGia, setExistingDanhGia] = useState<DanhGia | null>(null);
   // Map key: `${sach_id}_${don_hang_id}` -> DanhGia
   const [productReviews, setProductReviews] = useState<Map<string, DanhGia>>(new Map());
+  const [cancellingOrderId, setCancellingOrderId] = useState<number | null>(null);
   
   // Live search states
   interface SearchResult {
@@ -213,6 +214,33 @@ const UserOrders = () => {
     } catch (error) {
       console.error('Error canceling order:', error);
       toast.error('Có lỗi xảy ra khi hủy đơn hàng');
+    }
+  };
+
+  // Hàm xử lý hủy đơn hàng (cập nhật trạng thái thành "Đã hủy")
+  const handleCancelOrder = async (orderId: number) => {
+    if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) {
+      return;
+    }
+
+    setCancellingOrderId(orderId);
+    try {
+      await cancelDonHang(orderId);
+      toast.success('Hủy đơn hàng thành công');
+      // Reload danh sách đơn hàng
+      await loadOrders();
+      // Đóng dialog chi tiết nếu đang mở
+      if (selectedOrder?.don_hang_id === orderId) {
+        setIsDetailDialogOpen(false);
+        setSelectedOrder(null);
+      }
+    } catch (error: unknown) {
+      console.error('Error cancelling order:', error);
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Không thể hủy đơn hàng';
+      toast.error(errorMessage);
+    } finally {
+      setCancellingOrderId(null);
     }
   };
 
@@ -801,6 +829,33 @@ const UserOrders = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       {getStatusBadge(order.trang_thai)}
+                      {/* Nút hủy đơn hàng - chỉ hiển thị khi đơn hàng có thể hủy */}
+                      {order.trang_thai !== 'Đã hủy' && 
+                       order.trang_thai !== 'Đã giao hàng' && 
+                       order.trang_thai !== 'Hoàn thành' &&
+                       order.trang_thai !== 'Đang giao hàng' &&
+                       order.trang_thai !== 'Đang vận chuyển' &&
+                       ['Chờ xác nhận', 'Chờ thanh toán', 'Đã xác nhận'].includes(order.trang_thai) && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCancelOrder(order.don_hang_id)}
+                          disabled={cancellingOrderId === order.don_hang_id}
+                          className="gap-2"
+                        >
+                          {cancellingOrderId === order.don_hang_id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Đang hủy...
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-4 w-4" />
+                              Hủy đơn hàng
+                            </>
+                          )}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -980,9 +1035,38 @@ const UserOrders = () => {
                       {getStatusBadge(selectedOrder.trang_thai)}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Ngày đặt</p>
-                    <p className="font-semibold text-gray-900">{formatDate(selectedOrder.ngay_dat_hang)}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Ngày đặt</p>
+                      <p className="font-semibold text-gray-900">{formatDate(selectedOrder.ngay_dat_hang)}</p>
+                    </div>
+                    {/* Nút hủy đơn hàng trong dialog chi tiết */}
+                    {selectedOrder.trang_thai !== 'Đã hủy' && 
+                     selectedOrder.trang_thai !== 'Đã giao hàng' && 
+                     selectedOrder.trang_thai !== 'Hoàn thành' &&
+                     selectedOrder.trang_thai !== 'Đang giao hàng' &&
+                     selectedOrder.trang_thai !== 'Đang vận chuyển' &&
+                     ['Chờ xác nhận', 'Chờ thanh toán', 'Đã xác nhận'].includes(selectedOrder.trang_thai) && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCancelOrder(selectedOrder.don_hang_id)}
+                        disabled={cancellingOrderId === selectedOrder.don_hang_id}
+                        className="gap-2"
+                      >
+                        {cancellingOrderId === selectedOrder.don_hang_id ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Đang hủy...
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4" />
+                            Hủy đơn hàng
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
 

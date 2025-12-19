@@ -14,6 +14,7 @@ import {
 } from '../../services/tacGiaService';
 import { Plus, Pencil, Trash2, Eye, Search, Loader2, ArrowLeft, Home, PenTool, ArrowUpDown, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { Badge } from '../../components/ui/badge';
 
 const AdminQuanLyTacGia = () => {
   const navigate = useNavigate();
@@ -122,6 +123,11 @@ const AdminQuanLyTacGia = () => {
   };
 
   const handleOpenDeleteDialog = (tacGia: TacGia) => {
+    // Kiểm tra nếu tác giả có sách thì không cho xóa
+    if (tacGia.so_luong_sach !== undefined && tacGia.so_luong_sach > 0) {
+      toast.error(`Không thể xóa tác giả "${tacGia.ten_tac_gia}" vì đang có ${tacGia.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang tác giả khác trước.`);
+      return;
+    }
     setSelectedTacGia(tacGia);
     setIsDeleteDialogOpen(true);
   };
@@ -131,7 +137,7 @@ const AdminQuanLyTacGia = () => {
     
     // Validation
     if (!formData.ten_tac_gia.trim()) {
-      toast.error('Vui lòng nhập tên tác giả');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -169,6 +175,15 @@ const AdminQuanLyTacGia = () => {
   const handleDelete = async () => {
     if (!selectedTacGia) return;
 
+    // Kiểm tra lại số lượng sách trước khi xóa (double check)
+    if (selectedTacGia.so_luong_sach !== undefined && selectedTacGia.so_luong_sach > 0) {
+      toast.error(`Không thể xóa tác giả "${selectedTacGia.ten_tac_gia}" vì đang có ${selectedTacGia.so_luong_sach} sách. Vui lòng xóa hoặc chuyển sách sang tác giả khác trước.`);
+      setIsDeleteDialogOpen(false);
+      // Refresh dữ liệu để cập nhật số lượng sách
+      await loadData();
+      return;
+    }
+
     setFormLoading(true);
     try {
       await deleteTacGia(selectedTacGia.tac_gia_id);
@@ -184,6 +199,11 @@ const AdminQuanLyTacGia = () => {
         errorMessage = axiosError.response?.data?.message || 
                       axiosError.response?.data?.error || 
                       `Lỗi ${axiosError.response?.status || 500}`;
+        
+        // Nếu lỗi là do có sách, refresh dữ liệu để cập nhật số lượng sách
+        if (axiosError.response?.status === 400 && errorMessage.includes('sách')) {
+          await loadData();
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -295,6 +315,7 @@ const AdminQuanLyTacGia = () => {
                   <tr className="border-b">
                     <th className="text-left p-3 font-semibold">ID</th>
                     <th className="text-left p-3 font-semibold">Tên tác giả</th>
+                    <th className="text-left p-3 font-semibold">Số lượng sách</th>
                     <th className="text-left p-3 font-semibold">Tiểu sử</th>
                     <th className="text-left p-3 font-semibold">Ngày tạo</th>
                     <th className="text-left p-3 font-semibold">Thao tác</th>
@@ -309,6 +330,14 @@ const AdminQuanLyTacGia = () => {
                           <User className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                           <span>{tacGia.ten_tac_gia}</span>
                         </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge 
+                          variant={tacGia.so_luong_sach && tacGia.so_luong_sach > 0 ? "default" : "secondary"}
+                          className={tacGia.so_luong_sach && tacGia.so_luong_sach > 0 ? "bg-primary" : ""}
+                        >
+                          {tacGia.so_luong_sach ?? 0} sách
+                        </Badge>
                       </td>
                       <td className="p-3">
                         <div className="max-w-md truncate text-sm text-slate-600 dark:text-slate-400">
@@ -340,8 +369,17 @@ const AdminQuanLyTacGia = () => {
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => handleOpenDeleteDialog(tacGia)}
-                            title="Xóa"
-                            className="text-destructive hover:text-destructive"
+                            title={
+                              tacGia.so_luong_sach && tacGia.so_luong_sach > 0
+                                ? `Không thể xóa vì có ${tacGia.so_luong_sach} sách`
+                                : "Xóa"
+                            }
+                            disabled={tacGia.so_luong_sach !== undefined && tacGia.so_luong_sach > 0}
+                            className={`text-destructive hover:text-destructive ${
+                              tacGia.so_luong_sach && tacGia.so_luong_sach > 0
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -372,7 +410,6 @@ const AdminQuanLyTacGia = () => {
                 value={formData.ten_tac_gia}
                 onChange={(e) => setFormData({ ...formData, ten_tac_gia: e.target.value })}
                 placeholder="Ví dụ: Nguyễn Văn A"
-                required
               />
             </div>
 
@@ -462,25 +499,72 @@ const AdminQuanLyTacGia = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa tác giả "{selectedTacGia?.ten_tac_gia}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa tác giả
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa tác giả này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên tác giả:</span> {selectedTacGia?.ten_tac_gia}
+                </p>
+                {selectedTacGia?.tac_gia_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedTacGia.tac_gia_id}
+                  </p>
+                )}
+              </div>
+              {selectedTacGia?.so_luong_sach !== undefined && selectedTacGia.so_luong_sach > 0 ? (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                        ❌ Không thể xóa:
+                      </p>
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                        Tác giả này đang có {selectedTacGia.so_luong_sach} sách. Vui lòng xóa hoặc chuyển tất cả sách sang tác giả khác trước khi xóa tác giả này.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                        ⚠️ Cảnh báo:
+                      </p>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                        <li>Hành động này không thể hoàn tác</li>
+                        <li>Tác giả sẽ bị xóa vĩnh viễn</li>
+                      </ul>
+                    </div>
+                  )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading || (selectedTacGia?.so_luong_sach !== undefined && selectedTacGia.so_luong_sach > 0)}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

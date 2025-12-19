@@ -135,7 +135,7 @@ const AdminDonHang = () => {
     e.preventDefault();
     
     if (!selectedDonHang || !formData.trang_thai) {
-      toast.error('Vui lòng chọn trạng thái');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -516,7 +516,6 @@ const AdminDonHang = () => {
                 value={formData.trang_thai || ''}
                 onChange={(e) => setFormData({ ...formData, trang_thai: e.target.value })}
                 className="w-full px-3 py-2 border rounded-md text-sm bg-background border-slate-200 dark:border-slate-800 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                required
               >
                 <option value="">Chọn trạng thái</option>
                 <option value="Chờ xác nhận">Chờ xác nhận</option>

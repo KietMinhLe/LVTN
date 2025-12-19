@@ -130,7 +130,7 @@ const AdminQuanLyNguoiBienDich = () => {
     
     // Validation
     if (!formData.ten_nguoi_bien_dich.trim()) {
-      toast.error('Vui lòng nhập tên người biên dịch');
+      toast.error('Dữ liệu không hợp lệ. Vui lòng nhập lại');
       return;
     }
 
@@ -371,7 +371,6 @@ const AdminQuanLyNguoiBienDich = () => {
                 value={formData.ten_nguoi_bien_dich}
                 onChange={(e) => setFormData({ ...formData, ten_nguoi_bien_dich: e.target.value })}
                 placeholder="Ví dụ: Nguyễn Văn A, Trần Thị B..."
-                required
                 lang="vi"
                 autoComplete="off"
               />
@@ -465,25 +464,67 @@ const AdminQuanLyNguoiBienDich = () => {
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa người biên dịch "{selectedNguoiBienDich?.ten_nguoi_bien_dich}"? Hành động này không thể hoàn tác.
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa người biên dịch
+            </DialogTitle>
+            <DialogDescription className="pt-4 space-y-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-base font-semibold text-destructive mb-2">
+                  Bạn có chắc chắn muốn xóa người biên dịch này không?
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Tên người biên dịch:</span> {selectedNguoiBienDich?.ten_nguoi_bien_dich}
+                </p>
+                {selectedNguoiBienDich?.nguoi_bien_dich_id && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">ID:</span> {selectedNguoiBienDich.nguoi_bien_dich_id}
+                  </p>
+                )}
+                {selectedNguoiBienDich?.email && (
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <span className="font-medium">Email:</span> {selectedNguoiBienDich.email}
+                  </p>
+                )}
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                  ⚠️ Cảnh báo:
+                </p>
+                <ul className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-disc list-inside">
+                  <li>Hành động này không thể hoàn tác</li>
+                  <li>Tất cả dữ liệu liên quan sẽ bị xóa</li>
+                  <li>Nếu người biên dịch đang có sách, việc xóa có thể gặp lỗi</li>
+                </ul>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={formLoading}
+            >
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={formLoading}>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete} 
+              disabled={formLoading}
+              className="gap-2"
+            >
               {formLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Đang xóa...
                 </>
               ) : (
-                'Xóa'
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Xác nhận xóa
+                </>
               )}
             </Button>
           </DialogFooter>

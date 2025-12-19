@@ -7,6 +7,7 @@ export interface NhaXuatBan {
     email: string;
     ngay_tao?: string;
     ngay_cap_nhat?: string;
+    so_luong_sach?: number;
 }
 
 export interface NhaXuatBanListResponse {
