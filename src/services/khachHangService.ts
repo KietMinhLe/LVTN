@@ -176,6 +176,26 @@ export const loginKhachHang = async (credentials: UserLoginRequest): Promise<Use
   }
 };
 
+// Đăng nhập bằng Facebook
+export interface FacebookLoginRequest {
+  accessToken: string;
+  userID: string;
+  email?: string;
+  name?: string;
+}
+
+export const loginFacebook = async (data: FacebookLoginRequest): Promise<UserLoginResponse> => {
+  try {
+    console.log('Sending Facebook login request to:', '/khachhang/login/facebook');
+    const response = await apiClient.post<UserLoginResponse>('/khachhang/login/facebook', data);
+    console.log('Facebook login response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in loginFacebook service:', error);
+    throw error;
+  }
+};
+
 // Đổi mật khẩu
 export interface ChangePasswordRequest {
   mat_khau_cu: string;

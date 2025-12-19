@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
-import { Lock, Mail, Loader2, User, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, Loader2, User, Eye, EyeOff, Facebook } from 'lucide-react';
 
 const UserLogin = () => {
   const [email, setEmail] = useState('');
@@ -13,13 +13,15 @@ const UserLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const { login, isAuthenticated } = useUserAuth();
+  const [fbLoading, setFbLoading] = useState(false);
+  const { login, loginFacebook, isAuthenticated } = useUserAuth();
   const navigate = useNavigate();
 
-  // Nếu đã đăng nhập thì redirect về trang chủ
+  // Nếu đã đăng nhập thì redirect về trang chủ (chỉ một lần)
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      // Sử dụng replace để tránh quay lại trang login
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -161,7 +163,7 @@ const UserLogin = () => {
               <Button
                 type="submit"
                 className="w-full h-11 text-base font-medium bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all"
-                disabled={loading}
+                disabled={loading || fbLoading}
                 size="lg"
               >
                 {loading ? (
@@ -177,6 +179,62 @@ const UserLogin = () => {
                 )}
               </Button>
             </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-300 dark:border-slate-700" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white dark:bg-slate-900 px-2 text-slate-600 dark:text-slate-400">
+                  Hoặc
+                </span>
+              </div>
+            </div>
+
+            {/* Facebook Login Button */}
+            <Button
+              type="button"
+              onClick={async () => {
+                setFbLoading(true);
+                setError('');
+                try {
+                  const success = await loginFacebook();
+                  if (success) {
+                    setEmail('');
+                    setPassword('');
+                    // Reset loading state trước
+                    setFbLoading(false);
+                    // Đợi một chút để đảm bảo state đã được cập nhật, sau đó navigate
+                    setTimeout(() => {
+                      navigate('/', { replace: true });
+                    }, 500);
+                  } else {
+                    setFbLoading(false);
+                  }
+                } catch (error: unknown) {
+                  console.error('Facebook login error:', error);
+                  const errorMessage = 'Có lỗi xảy ra khi đăng nhập Facebook';
+                  setError(errorMessage);
+                  setFbLoading(false);
+                }
+              }}
+              className="w-full h-11 text-base font-medium bg-[#1877F2] hover:bg-[#166FE5] text-white shadow-lg shadow-[#1877F2]/20 hover:shadow-xl hover:shadow-[#1877F2]/30 transition-all"
+              disabled={loading || fbLoading}
+              size="lg"
+            >
+              {fbLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Facebook className="mr-2 h-5 w-5" />
+                  Đăng nhập với Facebook
+                </>
+              )}
+            </Button>
 
             {/* Forgot Password Link */}
             <div className="mt-4 text-center text-sm">

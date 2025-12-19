@@ -8,6 +8,7 @@ export interface UserAuthContextType {
   loading: boolean; // Loading
   isAuthenticated: boolean; // Is authenticated
   login: (email: string, password: string) => Promise<boolean>; // Login
+  loginFacebook: () => Promise<boolean>; // Login with Facebook
   register: (email: string, password: string, ho_ten: string, so_dien_thoai?: string, ngay_sinh?: string) => Promise<boolean>; // Register
   logout: () => void; // Logout
   updateUser: (userData: UserInfo) => void; // Update user info

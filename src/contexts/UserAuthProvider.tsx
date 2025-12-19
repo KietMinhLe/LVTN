@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { UserInfo } from '../services/khachHangService';
-import { loginKhachHang, registerKhachHang } from '../services/khachHangService';
+import { loginKhachHang, registerKhachHang, loginFacebook as loginFacebookService } from '../services/khachHangService';
 import { toast } from 'sonner';
 import type { AxiosError } from 'axios';
 import { UserAuthContext } from './UserAuthContext';
@@ -102,6 +102,198 @@ export const UserAuthProvider: React.FC<UserAuthProviderProps> = ({ children }) 
       toast.error(errorMessage);
       return false;
     }
+  };
+
+  // Đăng nhập bằng Facebook
+  const handleLoginFacebook = async (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      // Kiểm tra Facebook SDK đã load chưa
+      interface WindowWithFB extends Window {
+        FB?: {
+          init: (config: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
+          getLoginStatus: (callback: (response: { status: string; authResponse?: { accessToken: string; userID: string } }) => void) => void;
+          login: (callback: (response: { authResponse?: { accessToken: string; userID: string } }) => void, options: { scope: string; auth_type?: string }) => void;
+          logout: (callback: () => void) => void;
+          api: (path: string, params: { fields: string }, callback: (userInfo: { id: string; name: string; email?: string }) => void) => void;
+        };
+      }
+
+      const windowWithFB = window as WindowWithFB;
+      
+      // Đợi Facebook SDK load nếu chưa sẵn sàng
+      const checkFBReady = () => {
+        if (windowWithFB.FB) {
+          return windowWithFB.FB;
+        }
+        return null;
+      };
+
+      let FB = checkFBReady();
+      if (!FB) {
+        // Đợi tối đa 5 giây để Facebook SDK load
+        let attempts = 0;
+        const checkInterval = setInterval(() => {
+          FB = checkFBReady();
+          attempts++;
+          if (FB) {
+            clearInterval(checkInterval);
+            proceedWithLogin();
+          } else if (attempts >= 50) { // 5 giây (50 * 100ms)
+            clearInterval(checkInterval);
+            toast.error('Facebook SDK chưa sẵn sàng. Vui lòng tải lại trang.');
+            resolve(false);
+          }
+        }, 100);
+        return;
+      }
+
+      proceedWithLogin();
+
+      function proceedWithLogin() {
+        const currentFB = checkFBReady();
+        if (!currentFB) {
+          toast.error('Facebook SDK chưa sẵn sàng. Vui lòng tải lại trang.');
+          resolve(false);
+          return;
+        }
+
+        // Luôn logout trước để user có thể chọn tài khoản khác
+        // Kiểm tra trạng thái đăng nhập hiện tại
+        currentFB.getLoginStatus((response) => {
+          // Luôn logout trước (nếu đã đăng nhập) để user có thể chọn tài khoản khác
+          if (response.status === 'connected' && response.authResponse) {
+            // Đã đăng nhập với tài khoản cũ, logout trước
+            currentFB.logout(() => {
+              // Xóa cookie Facebook để đảm bảo có thể chọn tài khoản khác
+              try {
+                // Xóa cookie Facebook
+                document.cookie.split(";").forEach((c) => {
+                  const cookieName = c.trim().split("=")[0];
+                  if (cookieName.includes('fb') || cookieName.includes('facebook')) {
+                    document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;domain=.facebook.com`;
+                    document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
+                  }
+                });
+              } catch (e) {
+                console.log('Không thể xóa cookie:', e);
+              }
+
+              // Đợi một chút để đảm bảo logout hoàn tất
+              setTimeout(() => {
+                performLogin();
+              }, 500);
+            });
+          } else {
+            // Chưa đăng nhập, yêu cầu đăng nhập ngay
+            performLogin();
+          }
+        });
+
+        function performLogin() {
+          const currentFB = checkFBReady();
+          if (!currentFB) {
+            toast.error('Facebook SDK chưa sẵn sàng. Vui lòng tải lại trang.');
+            resolve(false);
+            return;
+          }
+
+          // Yêu cầu đăng nhập - sẽ hiển thị dialog chọn tài khoản
+          // Chỉ request public_profile để tránh lỗi scope email
+          currentFB.login(
+            (loginResponse) => {
+              if (loginResponse.authResponse) {
+                handleFacebookAuth(loginResponse.authResponse);
+              } else {
+                toast.error('Đăng nhập Facebook thất bại hoặc bị hủy');
+                resolve(false);
+              }
+            },
+            { scope: 'public_profile' }
+          );
+        }
+      }
+
+      const handleFacebookAuth = async (authResponse: { accessToken: string; userID: string }) => {
+        const currentFB = checkFBReady();
+        if (!currentFB) {
+          toast.error('Facebook SDK không khả dụng');
+          resolve(false);
+          return;
+        }
+
+        try {
+          // Lấy thông tin user từ Facebook - chỉ request id và name (public_profile)
+          currentFB.api('/me', { fields: 'id,name' }, async (userInfo: { id: string; name: string }) => {
+            try {
+              // Thử lấy email riêng nếu có permission (không bắt buộc)
+              // Sử dụng Promise để đợi email response
+              const getEmail = (): Promise<string | undefined> => {
+                return new Promise((emailResolve) => {
+                  try {
+                    currentFB.api('/me', { fields: 'email' }, (emailData: { email?: string }) => {
+                      emailResolve(emailData.email);
+                    });
+                  } catch {
+                    // Nếu không có email permission, trả về undefined
+                    emailResolve(undefined);
+                  }
+                });
+              };
+
+              // Đợi email (hoặc undefined nếu không có)
+              const userEmail = await getEmail();
+
+              const response = await loginFacebookService({
+                accessToken: authResponse.accessToken,
+                userID: authResponse.userID,
+                email: userEmail,
+                name: userInfo.name
+              });
+
+              if (response && response.success === true && response.token && response.khach_hang) {
+                // Lưu thông tin khách hàng
+                localStorage.setItem('khach_hang_info', JSON.stringify(response.khach_hang));
+                
+                // Lưu vào localStorage
+                localStorage.setItem('user_token', response.token);
+                localStorage.setItem('user_info', JSON.stringify(response.khach_hang));
+
+                // Update state
+                setToken(response.token);
+                setUser(response.khach_hang);
+
+                // Xóa session cũ và gio_hang_id cũ để load lại giỏ hàng của user
+                localStorage.removeItem('gio_hang_id');
+                sessionStorage.removeItem('session_id');
+
+                // Dispatch event để CartContext load lại giỏ hàng của user
+                window.dispatchEvent(new Event('userLogin'));
+
+                console.log('✅ Facebook login successful! Token and user saved');
+                toast.success(response.message || 'Đăng nhập Facebook thành công');
+                
+                // Resolve ngay lập tức để component có thể xử lý navigation
+                resolve(true);
+              } else {
+                const errorMsg = response?.message || 'Đăng nhập Facebook thất bại';
+                toast.error(errorMsg);
+                resolve(false);
+              }
+            } catch (error) {
+              console.error('❌ Facebook login error:', error);
+              const axiosError = error as AxiosError<{ message?: string }>;
+              const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Đăng nhập Facebook thất bại';
+              toast.error(errorMessage);
+              resolve(false);
+            }
+          });
+        } catch (error) {
+          console.error('❌ Facebook API error:', error);
+          toast.error('Không thể lấy thông tin từ Facebook');
+          resolve(false);
+        }
+      };
+    });
   };
 
   // Đăng nhập
@@ -225,6 +417,7 @@ export const UserAuthProvider: React.FC<UserAuthProviderProps> = ({ children }) 
     loading,
     isAuthenticated,
     login,
+    loginFacebook: handleLoginFacebook,
     register,
     logout,
     updateUser,
